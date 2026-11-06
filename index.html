@@ -1,0 +1,2042 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Infovative Technologies | Enterprise IT Consulting & Software Development</title>
+    <meta name="description" content="Infovative Technologies provides end-to-end IT Strategy Consulting, Custom Software Product Development, AI Automation, and Continuous IT Support & Maintenance.">
+<meta property="og:title" content="Infovative Technologies | Enterprise IT Consulting">
+<meta property="og:description" content="End-to-end IT Strategy Consulting, Custom Software Product Development, and AI Automation.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://yourusername.github.io/your-repo-name/">
+
+
+    
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Smooth Scroll Polyfill for Legacy/Unsupported Browsers -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/smoothscroll/1.4.10/smoothscroll.min.js"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        navy: {
+                            800: '#0B192C',
+                            900: '#070F1E',
+                            950: '#030712'
+                        },
+                        brand: {
+                            blue: '#2563EB',
+                            accent: '#3B82F6',
+                            light: '#EFF6FF',
+                            cyan: '#06B6D4'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif']
+                    }
+                }
+            }
+        }
+let isRegisterMode = false;
+let currentUser = null;
+
+function toggleLoginModal() {
+    const modal = document.getElementById('authModal');
+    modal.classList.toggle('hidden');
+    if (!modal.classList.contains('hidden')) {
+        if (window.lucide) lucide.createIcons();
+    }
+}
+
+function switchLoginRole(role) {
+    const tabClient = document.getElementById('tab-client');
+    const tabEmployee = document.getElementById('tab-employee');
+    const roleInput = document.getElementById('authRole');
+    const subtitle = document.getElementById('authModalSubtitle');
+
+    if (roleInput) roleInput.value = role;
+
+    if (role === 'employee') {
+        if (tabEmployee) tabEmployee.className = "flex-1 py-2 text-xs font-semibold rounded-lg transition-all text-white bg-blue-600 shadow-sm";
+        if (tabClient) tabClient.className = "flex-1 py-2 text-xs font-semibold rounded-lg transition-all text-slate-500 hover:text-slate-800";
+        if (subtitle) subtitle.innerText = "Access employee portal, internal tools & tasks";
+    } else {
+        if (tabClient) tabClient.className = "flex-1 py-2 text-xs font-semibold rounded-lg transition-all text-white bg-blue-600 shadow-sm";
+        if (tabEmployee) tabEmployee.className = "flex-1 py-2 text-xs font-semibold rounded-lg transition-all text-slate-500 hover:text-slate-800";
+        if (subtitle) subtitle.innerText = "Access your client dashboard & enterprise services";
+    }
+}
+
+function toggleAuthMode() {
+    isRegisterMode = !isRegisterMode;
+    const nameField = document.getElementById('nameField');
+    const phoneField = document.getElementById('phoneField');
+    const roleTabs = document.getElementById('roleTabsContainer');
+    const title = document.getElementById('authModalTitle');
+    const submitBtn = document.getElementById('authSubmitBtn');
+    const toggleText = document.getElementById('toggleAuthText');
+    const toggleBtn = document.getElementById('toggleAuthBtn');
+    const forgotLink = document.getElementById('forgotPassLink');
+
+    if (isRegisterMode) {
+        if(nameField) nameField.classList.remove('hidden');
+        if(phoneField) phoneField.classList.remove('hidden');
+        if(roleTabs) roleTabs.classList.add('hidden');
+        if(title) title.textContent = "Create an Account";
+        if(submitBtn) submitBtn.textContent = "Register Account";
+        if(toggleText) toggleText.textContent = "Already have an account?";
+        if(toggleBtn) toggleBtn.textContent = "Sign In";
+        if(forgotLink) forgotLink.classList.add('hidden');
+    } else {
+        if(nameField) nameField.classList.add('hidden');
+        if(phoneField) phoneField.classList.add('hidden');
+        if(roleTabs) roleTabs.classList.remove('hidden');
+        if(title) title.textContent = "Sign In to Infovative";
+        if(submitBtn) submitBtn.textContent = "Sign In";
+        if(toggleText) toggleText.textContent = "Don't have an account?";
+        if(toggleBtn) toggleBtn.textContent = "Create Account";
+        if(forgotLink) forgotLink.classList.remove('hidden');
+    }
+}
+
+// REAL FASTAPI BACKEND AUTH SUBMISSION HANDLER
+async function handleAuthSubmit(e) {
+    e.preventDefault();
+    
+    const email = document.getElementById('authEmail').value.trim();
+    const password = document.getElementById('authPassword').value;
+
+    if (isRegisterMode) {
+        // REGISTRATION API CALL
+        const fullName = document.getElementById('authName').value.trim();
+        const phone = document.getElementById('authPhone').value.trim() || "9999999999";
+
+        const payload = {
+            full_name: fullName,
+            email: email,
+            password: password,
+            confirm_password: password,
+            phone_number: phone
+        };
+
+        try {
+            const response = await fetch('http://127.0.0.1:8000/api/auth/register', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                alert(data.message || "Registration successful! Please sign in.");
+                toggleAuthMode(); // Switch back to Sign In mode
+                document.getElementById('authEmail').value = email;
+            } else {
+                alert(data.detail || "Registration failed.");
+            }
+        } catch (err) {
+            console.error("Connection error:", err);
+            alert("Could not connect to FastAPI server. Make sure it is running on port 8000.");
+        }
+
+    } else {
+        // LOGIN API CALL
+        const role = document.getElementById('authRole').value;
+        const loginPayload = {
+            email: email,
+            password: password,
+            role: role
+        };
+
+        try {
+            const response = await fetch('http://127.0.0.1:8000/api/auth/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(loginPayload)
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                if (data.access_token) {
+                    localStorage.setItem('access_token', data.access_token);
+                }
+                currentUser = {
+                    name: email.split('@')[0],
+                    email: email
+                };
+                updateAuthUI();
+                toggleLoginModal();
+                alert("Login successful!");
+                document.getElementById('authForm').reset();
+            } else {
+                alert(data.detail || "Invalid email or password.");
+            }
+        } catch (err) {
+            console.error("Connection error:", err);
+            alert("Could not connect to FastAPI server.");
+        }
+    }
+}
+
+function handleSignOut() {
+    currentUser = null;
+    localStorage.removeItem('access_token');
+    updateAuthUI();
+    alert("You have been signed out successfully.");
+}
+
+function updateAuthUI() {
+    const signInBtn = document.getElementById('signInNavBtn');
+    const userDropdown = document.getElementById('userProfileDropdown');
+    const navUserName = document.getElementById('navUserName');
+    const userEmailDisplay = document.getElementById('userEmailDisplay');
+    const userAvatar = document.getElementById('userAvatar');
+
+    if (currentUser) {
+        if(signInBtn) signInBtn.classList.add('hidden');
+        if(userDropdown) userDropdown.classList.remove('hidden');
+        if(navUserName) navUserName.textContent = currentUser.name;
+        if(userEmailDisplay) userEmailDisplay.textContent = currentUser.email;
+        if(userAvatar) userAvatar.textContent = currentUser.name.charAt(0).toUpperCase();
+    } else {
+        if(signInBtn) signInBtn.classList.remove('hidden');
+        if(userDropdown) userDropdown.classList.add('hidden');
+    }
+    
+    if (window.lucide) lucide.createIcons();
+}
+    </script>
+
+    <!-- Google Fonts & Lucide Icons -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><path d='M 10 10 H 90 V 30 H 30 V 90 H 10 Z' fill='%232563EB'/></svg>">
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .hero-gradient { background: radial-gradient(circle at top right, rgba(37, 99, 235, 0.15), transparent 40%), linear-gradient(180deg, #070F1E 0%, #0B192C 100%); }
+        .glass-card { background: rgba(255, 255, 255, 0.03); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.08); }
+        .glass-card-light { background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(12px); border: 1px solid rgba(226, 232, 240, 0.8); }
+        .nav-dropdown:hover .dropdown-menu { opacity: 1; visibility: visible; transform: translateY(0); }
+        .dropdown-menu { opacity: 0; visibility: hidden; transform: translateY(8px); transition: all 0.2s ease-in-out; }
+        .page-section { display: none; }
+        .page-section.active { display: block; animation: fadeIn 0.3s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 antialiased flex flex-col min-h-screen">
+
+
+
+    <!-- MAIN HEADER NAVIGATION -->
+    <header class="sticky top-0 z-50 bg-navy-900/95 backdrop-blur-md border-b border-slate-800 text-white shadow-xl">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-20">
+                
+<!-- OFFICIAL LOGO (Exact brand representation) -->
+            <a href="#home" onclick="navigateTo('home')" class="flex items-center space-x-3 group">
+                <div class="w-10 h-10 border-2 border-brand-blue rounded flex items-center justify-center p-1 bg-navy-900 group-hover:border-white transition-colors">
+                    <svg viewBox="0 0 100 100" class="w-full h-full fill-current text-white">
+                        <!-- Outer Frame L Shape -->
+                        <path d="M 10 10 H 90 V 30 H 30 V 90 H 10 Z"/>
+                        <!-- Inner T Shape -->
+                        <path d="M 40 40 H 90 V 60 H 75 V 90 H 55 V 60 H 40 Z"/>
+                    </svg>
+                </div>
+                <div class="flex flex-col">
+                    <span class="text-lg font-extrabold tracking-wider text-white uppercase leading-tight group-hover:text-brand-accent transition-colors">INFOVATIVE</span>
+                    <span class="text-xs font-semibold tracking-widest text-slate-400 uppercase leading-none">TECHNOLOGIES</span>
+                </div>
+            </a>
+
+                <!-- DESKTOP NAVIGATION -->
+                <nav class="hidden lg:flex items-center space-x-1">
+                    <a href="#home" onclick="navigateTo('home')" class="nav-link px-3 py-2 rounded-lg text-sm font-medium hover:text-brand-accent hover:bg-white/5 transition">Home</a>
+                    <a href="#about" onclick="navigateTo('about')" class="nav-link px-3 py-2 rounded-lg text-sm font-medium hover:text-brand-accent hover:bg-white/5 transition">About Us</a>
+
+                    <!-- SERVICES DROPDOWN -->
+                    <div class="relative nav-dropdown">
+                        <button class="flex items-center gap-1 px-3 py-2 rounded-lg text-sm font-medium hover:text-brand-accent hover:bg-white/5 transition focus:outline-none">
+                            Services <i data-lucide="chevron-down" class="w-4 h-4"></i>
+                        </button>
+                        <div class="dropdown-menu absolute left-0 mt-1 w-72 bg-navy-900 rounded-xl shadow-2xl border border-slate-700 py-3 z-50">
+                            <a href="#services" onclick="navigateTo('services')" class="block px-4 py-2 text-xs font-bold text-slate-400 uppercase tracking-wider hover:text-brand-accent">All Services Overview</a>
+                            <div class="h-px bg-slate-800 my-1"></div>
+                            <a href="#service-consulting" onclick="navigateTo('services', 'consulting')" class="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-200 hover:bg-brand-blue/20 hover:text-white transition"><i data-lucide="compass" class="w-4 h-4 text-brand-accent"></i> IT Strategy & Consulting</a>
+                            <a href="#service-custom" onclick="navigateTo('services', 'custom-software')" class="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-200 hover:bg-brand-blue/20 hover:text-white transition"><i data-lucide="code" class="w-4 h-4 text-brand-accent"></i> Custom Software Dev</a>
+                            <a href="#service-enterprise" onclick="navigateTo('services', 'enterprise')" class="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-200 hover:bg-brand-blue/20 hover:text-white transition"><i data-lucide="building-2" class="w-4 h-4 text-brand-accent"></i> Enterprise Applications</a>
+                            <a href="#service-webmobile" onclick="navigateTo('services', 'web-mobile')" class="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-200 hover:bg-brand-blue/20 hover:text-white transition"><i data-lucide="smartphone" class="w-4 h-4 text-brand-accent"></i> Web & Mobile Apps</a>
+                            <a href="#service-ai" onclick="navigateTo('services', 'ai-automation')" class="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-200 hover:bg-brand-blue/20 hover:text-white transition"><i data-lucide="cpu" class="w-4 h-4 text-brand-accent"></i> AI & Process Automation</a>
+                            <a href="#service-cloud" onclick="navigateTo('services', 'cloud')" class="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-200 hover:bg-brand-blue/20 hover:text-white transition"><i data-lucide="cloud" class="w-4 h-4 text-brand-accent"></i> Cloud Solutions & DevOps</a>
+                            <a href="#service-qa" onclick="navigateTo('services', 'qa')" class="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-200 hover:bg-brand-blue/20 hover:text-white transition"><i data-lucide="shield-check" class="w-4 h-4 text-brand-accent"></i> Software Testing & QA</a>
+                            <a href="#service-support" onclick="navigateTo('services', 'support')" class="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-200 hover:bg-brand-blue/20 hover:text-white transition"><i data-lucide="headphones" class="w-4 h-4 text-brand-accent"></i> IT Support & Maintenance</a>
+                        </div>
+                    </div>
+
+                    <a href="#product-dev" onclick="navigateTo('product-dev')" class="nav-link px-3 py-2 rounded-lg text-sm font-medium hover:text-brand-accent hover:bg-white/5 transition">Product Dev</a>
+                    <a href="#industries" onclick="navigateTo('industries')" class="nav-link px-3 py-2 rounded-lg text-sm font-medium hover:text-brand-accent hover:bg-white/5 transition">Industries</a>
+                    <a href="#portfolio" onclick="navigateTo('portfolio')" class="nav-link px-3 py-2 rounded-lg text-sm font-medium hover:text-brand-accent hover:bg-white/5 transition">Portfolio</a>
+                    <a href="#careers" onclick="navigateTo('careers')" class="nav-link px-3 py-2 rounded-lg text-sm font-medium hover:text-brand-accent hover:bg-white/5 transition">Careers</a>
+                    <a href="#contact" onclick="navigateTo('contact')" class="nav-link px-3 py-2 rounded-lg text-sm font-medium hover:text-brand-accent hover:bg-white/5 transition">Contact Us</a>
+                </nav>
+
+               <!-- AUTHENTICATION CONTAINER (HEADER) -->
+<div id="authHeaderContainer" class="flex items-center">
+    <!-- SIGN IN BUTTON (Default State) -->
+    <button id="signInNavBtn" onclick="toggleLoginModal()" class="text-sm font-semibold text-slate-200 hover:text-brand-accent px-4 py-2 rounded-lg border border-slate-700 hover:border-brand-accent transition flex items-center gap-2">
+        <i data-lucide="user" class="w-4 h-4 text-brand-accent"></i>
+        <span>Sign In</span>
+    </button>
+
+    <!-- SIGNED-IN USER DROPDOWN (Hidden by default) -->
+    <div id="userProfileDropdown" class="hidden relative nav-dropdown">
+        <button class="text-sm font-semibold text-white px-4 py-2 rounded-lg bg-navy-800 border border-slate-700 hover:border-brand-accent transition flex items-center gap-2">
+            <div class="w-6 h-6 rounded-full bg-brand-blue flex items-center justify-center text-xs text-white font-bold" id="userAvatar">U</div>
+            <span id="navUserName" class="max-w-[120px] truncate">User</span>
+            <i data-lucide="chevron-down" class="w-4 h-4 text-slate-400"></i>
+        </button>
+        <div class="dropdown-menu absolute right-0 mt-1 w-48 bg-navy-900 rounded-xl shadow-2xl border border-slate-700 py-2 z-50">
+            <div class="px-4 py-2 border-b border-slate-800 text-xs text-slate-400 truncate" id="userEmailDisplay">
+                user@company.com
+            </div>
+            <a href="#contact" onclick="navigateTo('contact')" class="flex items-center gap-2 px-4 py-2 text-xs text-slate-200 hover:bg-white/5 transition">
+                <i data-lucide="settings" class="w-3.5 h-3.5 text-slate-400"></i> Dashboard
+            </a>
+            <button onclick="handleSignOut()" class="w-full text-left flex items-center gap-2 px-4 py-2 text-xs text-red-400 hover:bg-red-500/10 transition">
+                <i data-lucide="log-out" class="w-3.5 h-3.5 text-red-400"></i> Sign Out
+            </button>
+        </div>
+    </div>
+</div>
+
+                <!-- MOBILE MENU BUTTON -->
+                <div class="lg:hidden flex items-center">
+                    <button id="mobileMenuBtn" onclick="toggleMobileMenu()" class="text-slate-300 hover:text-white p-2 rounded-lg focus:outline-none">
+                        <i data-lucide="menu" class="w-7 h-7"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- MOBILE MENU DROPDOWN PANEL -->
+        <div id="mobileMenu" class="hidden lg:hidden bg-navy-950 border-b border-slate-800 px-4 pt-3 pb-6 space-y-2">
+            <a href="#home" onclick="navigateTo('home'); toggleMobileMenu()" class="block px-3 py-2 rounded-lg text-base font-medium text-slate-200 hover:bg-slate-800">Home</a>
+            <a href="#about" onclick="navigateTo('about'); toggleMobileMenu()" class="block px-3 py-2 rounded-lg text-base font-medium text-slate-200 hover:bg-slate-800">About Us</a>
+            <a href="#services" onclick="navigateTo('services'); toggleMobileMenu()" class="block px-3 py-2 rounded-lg text-base font-medium text-brand-accent bg-blue-950/40">Services & Solutions</a>
+            <a href="#product-dev" onclick="navigateTo('product-dev'); toggleMobileMenu()" class="block px-3 py-2 rounded-lg text-base font-medium text-slate-200 hover:bg-slate-800">Product Development</a>
+            <a href="#industries" onclick="navigateTo('industries'); toggleMobileMenu()" class="block px-3 py-2 rounded-lg text-base font-medium text-slate-200 hover:bg-slate-800">Industries Served</a>
+            <a href="#portfolio" onclick="navigateTo('portfolio'); toggleMobileMenu()" class="block px-3 py-2 rounded-lg text-base font-medium text-slate-200 hover:bg-slate-800">Portfolio & Case Studies</a>
+            <a href="#careers" onclick="navigateTo('careers'); toggleMobileMenu()" class="block px-3 py-2 rounded-lg text-base font-medium text-slate-200 hover:bg-slate-800">Careers</a>
+            <a href="#contact" onclick="navigateTo('contact'); toggleMobileMenu()" class="block px-3 py-2 rounded-lg text-base font-medium text-slate-200 hover:bg-slate-800">Contact Us</a>
+            <div class="pt-4">
+                <button onclick="navigateTo('contact'); toggleMobileMenu()" class="w-full bg-brand-blue text-white font-semibold py-3 rounded-xl text-center">
+                    Schedule Technical Audit
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- CONTAINER FOR ROUTED DYNAMIC CONTENT PAGES -->
+    <main class="flex-grow">
+
+        <!-- ================= PAGE 1: HOME ================= -->
+        <section id="page-home" class="page-section active">
+            <!-- HERO SECTION -->
+            <div class="hero-gradient text-white py-20 lg:py-28 relative overflow-hidden">
+                <div class="absolute inset-0 opacity-10 bg-[radial-gradient(#3B82F6_1px,transparent_1px)] [background-size:16px_16px]"></div>
+                <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+                    <div class="grid lg:grid-cols-12 gap-12 items-center">
+                        <div class="lg:col-span-7 space-y-6">
+                            <div class="inline-flex items-center gap-2 bg-blue-500/10 border border-blue-500/30 rounded-full px-3.5 py-1.5 text-xs text-brand-accent font-semibold tracking-wide uppercase">
+                                <i data-lucide="sparkles" class="w-4 h-4"></i> IT Consulting & Product Development Support
+                            </div>
+                            <h1 class="text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight leading-tight">
+                                Transforming Business Ideas into <span class="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-sky-300 to-cyan-400">Powerful Technology Solutions</span>
+                            </h1>
+                            <p class="text-lg text-slate-300 max-w-2xl font-normal leading-relaxed">
+                                Infovative Technologies helps modern businesses innovate, build, and scale through strategic IT consulting, custom software product development, and reliable 24/7 technology support.
+                            </p>
+                            <div class="flex flex-col sm:flex-row gap-4 pt-2">
+                                <button onclick="navigateTo('contact')" class="bg-brand-blue hover:bg-blue-600 text-white font-bold px-8 py-4 rounded-xl shadow-xl shadow-blue-600/30 transition-all flex items-center justify-center gap-3 text-base">
+                                    <span>Discuss Your Project</span>
+                                    <i data-lucide="arrow-right" class="w-5 h-5"></i>
+                                </button>
+                                <button onclick="navigateTo('services')" class="bg-slate-800/80 hover:bg-slate-800 border border-slate-700 text-slate-200 font-semibold px-7 py-4 rounded-xl transition flex items-center justify-center gap-2 text-base">
+                                    <span>Explore Services</span>
+                                    <i data-lucide="chevron-right" class="w-5 h-5"></i>
+                                </button>
+                            </div>
+                            <!-- TRUST BADGES -->
+                            <div class="pt-8 border-t border-slate-800/80 grid grid-cols-3 gap-4 text-center sm:text-left">
+                                <div>
+                                    <p class="text-2xl font-extrabold text-white">100%</p>
+                                    <p class="text-xs text-slate-400">Tailored Architecture</p>
+                                </div>
+                                <div>
+                                    <p class="text-2xl font-extrabold text-white">24/7</p>
+                                    <p class="text-xs text-slate-400">SLA Support Options</p>
+                                </div>
+                                <div>
+                                    <p class="text-2xl font-extrabold text-white">End-to-End</p>
+                                    <p class="text-xs text-slate-400">Lifecycle Management</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- HERO GRAPHIC CARD -->
+                        <div class="lg:col-span-5">
+                            <div class="glass-card rounded-2xl p-6 sm:p-8 relative shadow-2xl">
+                                <div class="flex items-center justify-between pb-6 border-b border-slate-700/60">
+                                    <div class="flex items-center gap-3">
+                                        <div class="w-3 h-3 rounded-full bg-red-500"></div>
+                                        <div class="w-3 h-3 rounded-full bg-yellow-500"></div>
+                                        <div class="w-3 h-3 rounded-full bg-green-500"></div>
+                                    </div>
+                                    <span class="text-xs text-slate-400 font-mono">Infovative Core Architecture v2.4</span>
+                                </div>
+                                <div class="space-y-4 py-6">
+                                    <div class="p-4 rounded-xl bg-slate-900/80 border border-slate-800 flex items-start gap-4">
+                                        <div class="p-3 bg-blue-500/10 rounded-lg text-brand-accent">
+                                            <i data-lucide="compass" class="w-6 h-6"></i>
+                                        </div>
+                                        <div>
+                                            <h4 class="text-white font-semibold text-sm">Strategic IT Consulting</h4>
+                                            <p class="text-xs text-slate-400 mt-0.5">Technology roadmapping, cloud readiness & architecture audits.</p>
+                                        </div>
+                                    </div>
+                                    <div class="p-4 rounded-xl bg-slate-900/80 border border-slate-800 flex items-start gap-4">
+                                        <div class="p-3 bg-cyan-500/10 rounded-lg text-cyan-400">
+                                            <i data-lucide="layers" class="w-6 h-6"></i>
+                                        </div>
+                                        <div>
+                                            <h4 class="text-white font-semibold text-sm">Product Development</h4>
+                                            <p class="text-xs text-slate-400 mt-0.5">Full-stack web applications, SaaS products & mobile solutions.</p>
+                                        </div>
+                                    </div>
+                                    <div class="p-4 rounded-xl bg-slate-900/80 border border-slate-800 flex items-start gap-4">
+                                        <div class="p-3 bg-emerald-500/10 rounded-lg text-emerald-400">
+                                            <i data-lucide="shield-check" class="w-6 h-6"></i>
+                                        </div>
+                                        <div>
+                                            <h4 class="text-white font-semibold text-sm">Managed IT Support</h4>
+                                            <p class="text-xs text-slate-400 mt-0.5">Application maintenance, cloud server monitoring & performance tuning.</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="pt-2 text-center">
+                                    <a href="#contact" onclick="navigateTo('contact')" class="text-xs text-brand-accent hover:underline inline-flex items-center gap-1 font-semibold">
+                                        Book initial technology review <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- THREE CORE BUSINESS PILLARS INTERACTIVE TAB SECTION -->
+            <section class="py-20 bg-white">
+                <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                    <div class="text-center max-w-3xl mx-auto mb-16">
+                        <span class="text-xs font-extrabold uppercase text-brand-blue tracking-widest">Core Capabilities</span>
+                        <h2 class="text-3xl sm:text-4xl font-extrabold text-navy-900 mt-2">Empowering Digital Enterprise Growth</h2>
+                        <p class="text-slate-600 mt-3">We align technology strategies with business objectives through three specialized service pillars.</p>
+                    </div>
+
+
+
+                    <!-- THREE CORE PILLARS SIDE-BY-SIDE GRID -->
+                    <div class="grid lg:grid-cols-3 gap-8">
+                        
+                        <!-- 1. IT Consulting -->
+                        <div class="bg-slate-50 border border-slate-200 rounded-2xl p-6 sm:p-8 text-center flex flex-col justify-between items-center">
+                            <div class="w-full flex flex-col items-center">
+                                <div class="w-full h-44 rounded-xl overflow-hidden mb-6 shadow-inner bg-slate-200">
+                                    <img src="https://images.unsplash.com/photo-1552664730-d307ca884978?auto=format&fit=crop&w=600&q=80" alt="Strategic Technology & IT Consulting" class="w-full h-full object-cover">
+                                </div>
+                                <h3 class="text-xl font-bold text-navy-900 mb-3">Strategic Technology & IT Consulting</h3>
+                                <p class="text-slate-600 text-sm mb-6 leading-relaxed text-center">
+                                    Navigating today's complex technology landscape requires foresight. Infovative Technologies advises businesses on IT architecture, cloud readiness, security protocols, and digital modernization.
+                                </p>
+                                <ul class="space-y-2 text-xs text-slate-700 mb-6 text-left w-full px-2">
+                                    <li class="flex items-center gap-2"><i data-lucide="check-circle-2" class="w-4 h-4 text-emerald-500 shrink-0"></i> Enterprise Digital Transformation Roadmaps</li>
+                                    <li class="flex items-center gap-2"><i data-lucide="check-circle-2" class="w-4 h-4 text-emerald-500 shrink-0"></i> Software Architecture & Codebase Audits</li>
+                                </ul>
+                            </div>
+                            <button onclick="navigateTo('services', 'consulting')" class="w-full bg-navy-800 hover:bg-navy-900 text-white font-semibold py-2.5 rounded-xl text-xs transition text-center">
+                                Explore IT Consulting &rarr;
+                            </button>
+                        </div>
+
+                        <!-- 2. Product Development -->
+                        <div class="bg-slate-50 border border-slate-200 rounded-2xl p-6 sm:p-8 text-center flex flex-col justify-between items-center">
+                            <div class="w-full flex flex-col items-center">
+                                <div class="w-full h-44 rounded-xl overflow-hidden mb-6 shadow-inner bg-slate-200">
+                                    <img src="https://images.unsplash.com/photo-1555066931-4365d14bab8c?auto=format&fit=crop&w=600&q=80" alt="Full-Cycle Software Product Engineering" class="w-full h-full object-cover">
+                                </div>
+                                <h3 class="text-xl font-bold text-navy-900 mb-3">Full-Cycle Software Product Engineering</h3>
+                                <p class="text-slate-600 text-sm mb-6 leading-relaxed text-center">
+                                    From conceptual SaaS platforms to complex enterprise software systems, our engineering team turns operational demands into robust, secure digital products.
+                                </p>
+                                <ul class="space-y-2 text-xs text-slate-700 mb-6 text-left w-full px-2">
+                                    <li class="flex items-center gap-2"><i data-lucide="check-circle-2" class="w-4 h-4 text-emerald-500 shrink-0"></i> Custom Web & Mobile Apps</li>
+                                    <li class="flex items-center gap-2"><i data-lucide="check-circle-2" class="w-4 h-4 text-emerald-500 shrink-0"></i> SaaS & Multi-Tenant Platform Engineering</li>
+                                </ul>
+                            </div>
+                            <button onclick="navigateTo('product-dev')" class="w-full bg-navy-800 hover:bg-navy-900 text-white font-semibold py-2.5 rounded-xl text-xs transition text-center">
+                                Learn About Product Dev &rarr;
+                            </button>
+                        </div>
+
+                        <!-- 3. Support & Maintenance -->
+                        <div class="bg-slate-50 border border-slate-200 rounded-2xl p-6 sm:p-8 text-center flex flex-col justify-between items-center">
+                            <div class="w-full flex flex-col items-center">
+                                <div class="w-full h-44 rounded-xl overflow-hidden mb-6 shadow-inner bg-slate-200">
+                                    <img src="https://images.unsplash.com/photo-1521737604893-d14cc237f11d?auto=format&fit=crop&w=600&q=80" alt="Managed IT Support & Software Maintenance" class="w-full h-full object-cover">
+                                </div>
+                                <h3 class="text-xl font-bold text-navy-900 mb-3">Managed IT Support & Software Maintenance</h3>
+                                <p class="text-slate-600 text-sm mb-6 leading-relaxed text-center">
+                                    Deployment is only the first step. Infovative Technologies ensures maximum uptime, high security standards, fast response times, and ongoing system optimization.
+                                </p>
+                                <ul class="space-y-2 text-xs text-slate-700 mb-6 text-left w-full px-2">
+                                    <li class="flex items-center gap-2"><i data-lucide="check-circle-2" class="w-4 h-4 text-emerald-500 shrink-0"></i> 24/7 Cloud Uptime Monitoring</li>
+                                    <li class="flex items-center gap-2"><i data-lucide="check-circle-2" class="w-4 h-4 text-emerald-500 shrink-0"></i> SLA Support & Security Patching</li>
+                                </ul>
+                            </div>
+                            <button onclick="navigateTo('services', 'support')" class="w-full bg-navy-800 hover:bg-navy-900 text-white font-semibold py-2.5 rounded-xl text-xs transition text-center">
+                                Explore Managed Support &rarr;
+                            </button>
+                        </div>
+
+                    </div>
+                            <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm mt-8">
+                                <h4 class="font-bold text-navy-900 mb-4 pb-2 border-b border-slate-100">SLA & Maintenance Packages</h4>
+                                <div class="space-y-3 text-sm">
+                                    <div class="p-3 bg-slate-50 rounded-lg flex justify-between items-center">
+                                        <span class="font-semibold text-slate-800">Critical Incident SLA Response</span>
+                                        <span class="text-xs bg-emerald-100 text-emerald-700 px-2.5 py-1 rounded-full font-bold">&lt; 2 Hours</span>
+                                    </div>
+                                    <div class="p-3 bg-slate-50 rounded-lg flex justify-between items-center">
+                                        <span class="font-semibold text-slate-800">Security Audit Frequency</span>
+                                        <span class="text-xs bg-blue-100 text-brand-blue px-2.5 py-1 rounded-full font-bold">Monthly / Quarterly</span>
+                                    </div>
+                                    <div class="p-3 bg-slate-50 rounded-lg flex justify-between items-center">
+                                        <span class="font-semibold text-slate-800">Server Monitoring</span>
+                                        <span class="text-xs bg-purple-100 text-purple-700 px-2.5 py-1 rounded-full font-bold">24 / 7 Automated</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- METHODOLOGY / 8-STEP LIFECYCLE PREVIEW -->
+            <section class="py-20 bg-slate-900 text-white">
+                <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                    <div class="text-center max-w-3xl mx-auto mb-16">
+                        <span class="text-xs font-extrabold uppercase text-brand-accent tracking-widest">Our Methodology</span>
+                        <h2 class="text-3xl sm:text-4xl font-extrabold mt-2">Structured Product Development Lifecycle</h2>
+                        <p class="text-slate-400 mt-3">We ensure project success through transparent execution, agile sprints, and rigorous quality assurance.</p>
+                    </div>
+
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-6">
+                        <div class="bg-slate-800/60 p-5 rounded-xl border border-slate-700/60 text-center hover:border-brand-accent transition group">
+                            <div class="w-10 h-10 mx-auto mb-3 rounded-full bg-blue-500/20 text-brand-accent flex items-center justify-center font-bold text-lg group-hover:scale-110 transition">1</div>
+                            <h4 class="font-bold text-sm text-white">Idea & Discovery</h4>
+                            <p class="text-xs text-slate-400 mt-1">Scope definition & tech audit</p>
+                        </div>
+                        <div class="bg-slate-800/60 p-5 rounded-xl border border-slate-700/60 text-center hover:border-brand-accent transition group">
+                            <div class="w-10 h-10 mx-auto mb-3 rounded-full bg-blue-500/20 text-brand-accent flex items-center justify-center font-bold text-lg group-hover:scale-110 transition">2</div>
+                            <h4 class="font-bold text-sm text-white">Requirements</h4>
+                            <p class="text-xs text-slate-400 mt-1">Detailed functional specification</p>
+                        </div>
+                        <div class="bg-slate-800/60 p-5 rounded-xl border border-slate-700/60 text-center hover:border-brand-accent transition group">
+                            <div class="w-10 h-10 mx-auto mb-3 rounded-full bg-blue-500/20 text-brand-accent flex items-center justify-center font-bold text-lg group-hover:scale-110 transition">3</div>
+                            <h4 class="font-bold text-sm text-white">UI/UX Design</h4>
+                            <p class="text-xs text-slate-400 mt-1">Wireframes & visual design</p>
+                        </div>
+                        <div class="bg-slate-800/60 p-5 rounded-xl border border-slate-700/60 text-center hover:border-brand-accent transition group">
+                            <div class="w-10 h-10 mx-auto mb-3 rounded-full bg-blue-500/20 text-brand-accent flex items-center justify-center font-bold text-lg group-hover:scale-110 transition">4</div>
+                            <h4 class="font-bold text-sm text-white">Architecture</h4>
+                            <p class="text-xs text-slate-400 mt-1">Database & API modeling</p>
+                        </div>
+                        <div class="bg-slate-800/60 p-5 rounded-xl border border-slate-700/60 text-center hover:border-brand-accent transition group">
+                            <div class="w-10 h-10 mx-auto mb-3 rounded-full bg-blue-500/20 text-brand-accent flex items-center justify-center font-bold text-lg group-hover:scale-110 transition">5</div>
+                            <h4 class="font-bold text-sm text-white">Development</h4>
+                            <p class="text-xs text-slate-400 mt-1">Agile sprints & clean code</p>
+                        </div>
+                        <div class="bg-slate-800/60 p-5 rounded-xl border border-slate-700/60 text-center hover:border-brand-accent transition group">
+                            <div class="w-10 h-10 mx-auto mb-3 rounded-full bg-blue-500/20 text-brand-accent flex items-center justify-center font-bold text-lg group-hover:scale-110 transition">6</div>
+                            <h4 class="font-bold text-sm text-white">Testing & QA</h4>
+                            <p class="text-xs text-slate-400 mt-1">Security & performance checks</p>
+                        </div>
+                        <div class="bg-slate-800/60 p-5 rounded-xl border border-slate-700/60 text-center hover:border-brand-accent transition group">
+                            <div class="w-10 h-10 mx-auto mb-3 rounded-full bg-blue-500/20 text-brand-accent flex items-center justify-center font-bold text-lg group-hover:scale-110 transition">7</div>
+                            <h4 class="font-bold text-sm text-white">Deployment</h4>
+                            <p class="text-xs text-slate-400 mt-1">Cloud launch & CI/CD setup</p>
+                        </div>
+                        <div class="bg-slate-800/60 p-5 rounded-xl border border-slate-700/60 text-center hover:border-brand-accent transition group">
+                            <div class="w-10 h-10 mx-auto mb-3 rounded-full bg-blue-500/20 text-brand-accent flex items-center justify-center font-bold text-lg group-hover:scale-110 transition">8</div>
+                            <h4 class="font-bold text-sm text-white">Maintenance</h4>
+                            <p class="text-xs text-slate-400 mt-1">Continuous technical support</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- WHY CHOOSE US -->
+            <section class="py-20 bg-slate-50">
+                <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                    <div class="text-center max-w-3xl mx-auto mb-16">
+                        <span class="text-xs font-extrabold uppercase text-brand-blue tracking-widest">Why Choose Infovative</span>
+                        <h2 class="text-3xl sm:text-4xl font-extrabold text-navy-900 mt-2">Built for Reliability, Scalability & Speed</h2>
+                    </div>
+
+                    <div class="grid md:grid-cols-3 gap-8">
+                        <!-- Technical Excellence -->
+                        <div class="bg-white p-8 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition text-center flex flex-col items-center">
+                            <div class="w-full h-40 rounded-xl overflow-hidden mb-6 shadow-inner bg-slate-100 flex items-center justify-center">
+                                <img src="https://images.unsplash.com/photo-1581092160607-ee22621dd758?auto=format&fit=crop&w=600&q=80" alt="Technical Excellence" class="w-full h-full object-cover hover:scale-105 transition duration-300">
+                            </div>
+                            <h3 class="text-xl font-bold text-navy-900 mb-2">Technical Excellence</h3>
+                            <p class="text-slate-600 text-sm leading-relaxed text-center">Modern web standards, architectural scalability, and clean code principles strictly applied to every deliverable.</p>
+                        </div>
+
+                        <!-- Dedicated Communication -->
+                        <div class="bg-white p-8 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition text-center flex flex-col items-center">
+                            <div class="w-full h-40 rounded-xl overflow-hidden mb-6 shadow-inner bg-slate-100 flex items-center justify-center">
+                                <img src="https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=600&q=80" alt="Dedicated Communication" class="w-full h-full object-cover hover:scale-105 transition duration-300">
+                            </div>
+                            <h3 class="text-xl font-bold text-navy-900 mb-2">Dedicated Communication</h3>
+                            <p class="text-slate-600 text-sm leading-relaxed text-center">Direct engagement model with clear sprint demos, regular status reporting, and transparent progress tracking.</p>
+                        </div>
+
+                        <!-- Strict Data Security -->
+                        <div class="bg-white p-8 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition text-center flex flex-col items-center">
+                            <div class="w-full h-40 rounded-xl overflow-hidden mb-6 shadow-inner bg-slate-100 flex items-center justify-center">
+                                <img src="https://images.unsplash.com/photo-1563986768609-322da13575f3?auto=format&fit=crop&w=600&q=80" alt="Strict Data Security" class="w-full h-full object-cover hover:scale-105 transition duration-300">
+                            </div>
+                            <h3 class="text-xl font-bold text-navy-900 mb-2">Strict Data Security</h3>
+                            <p class="text-slate-600 text-sm leading-relaxed text-center">Non-disclosure agreements, data encryption, and corporate security guidelines protecting client intellectual property.</p>
+                        </div>
+                    </div>
+                </div>
+
+
+           </section>
+<!-- CLIENT TESTIMONIALS (ONLY ON HOME PAGE) -->
+            <section class="py-20 bg-white border-t border-slate-200">
+                <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                    <div class="text-center max-w-3xl mx-auto mb-16">
+                        <span class="text-xs font-extrabold uppercase text-brand-blue tracking-widest">Client Feedback</span>
+                        <h2 class="text-3xl sm:text-4xl font-extrabold text-navy-900 mt-2">Trusted by Modern Enterprises</h2>
+                        <p class="text-slate-600 mt-3 text-sm">Read what our corporate partners say about our technical rigor and communication.</p>
+                    </div>
+
+                    <div class="grid md:grid-cols-3 gap-8">
+                        <!-- Testimonial 1 -->
+                        <div class="bg-slate-50 p-8 rounded-2xl border border-slate-200 flex flex-col justify-between shadow-sm">
+                            <div class="space-y-4">
+                                <div class="flex text-amber-400 gap-1">
+                                    <i data-lucide="star" class="w-4 h-4 fill-current"></i>
+                                    <i data-lucide="star" class="w-4 h-4 fill-current"></i>
+                                    <i data-lucide="star" class="w-4 h-4 fill-current"></i>
+                                    <i data-lucide="star" class="w-4 h-4 fill-current"></i>
+                                    <i data-lucide="star" class="w-4 h-4 fill-current"></i>
+                                </div>
+                                <p class="text-xs text-slate-700 leading-relaxed italic">
+                                    "Infovative Technologies completely modernized our legacy architecture. Their adherence to clean code and prompt SLA support has been exceptional for our business operations."
+                                </p>
+                            </div>
+                            <div class="pt-6 mt-6 border-t border-slate-200 flex items-center gap-3">
+                                <div class="w-10 h-10 rounded-full bg-brand-blue text-white font-bold flex items-center justify-center text-xs">RK</div>
+                                <div>
+                                    <h4 class="font-bold text-navy-900 text-xs">Rajesh Kumar</h4>
+                                    <p class="text-[11px] text-slate-500">CTO, FinTech Solutions</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Testimonial 2 -->
+                        <div class="bg-slate-50 p-8 rounded-2xl border border-slate-200 flex flex-col justify-between shadow-sm">
+                            <div class="space-y-4">
+                                <div class="flex text-amber-400 gap-1">
+                                    <i data-lucide="star" class="w-4 h-4 fill-current"></i>
+                                    <i data-lucide="star" class="w-4 h-4 fill-current"></i>
+                                    <i data-lucide="star" class="w-4 h-4 fill-current"></i>
+                                    <i data-lucide="star" class="w-4 h-4 fill-current"></i>
+                                    <i data-lucide="star" class="w-4 h-4 fill-current"></i>
+                                </div>
+                                <p class="text-xs text-slate-700 leading-relaxed italic">
+                                    "Their team delivered our custom SaaS platform ahead of schedule. The communication model and sprint transparency made the entire engineering lifecycle seamless."
+                                </p>
+                            </div>
+                            <div class="pt-6 mt-6 border-t border-slate-200 flex items-center gap-3">
+                                <div class="w-10 h-10 rounded-full bg-cyan-600 text-white font-bold flex items-center justify-center text-xs">PS</div>
+                                <div>
+                                    <h4 class="font-bold text-navy-900 text-xs">Priya Sharma</h4>
+                                    <p class="text-[11px] text-slate-500">Director of Operations, HealthTech India</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Testimonial 3 -->
+                        <div class="bg-slate-50 p-8 rounded-2xl border border-slate-200 flex flex-col justify-between shadow-sm">
+                            <div class="space-y-4">
+                                <div class="flex text-amber-400 gap-1">
+                                    <i data-lucide="star" class="w-4 h-4 fill-current"></i>
+                                    <i data-lucide="star" class="w-4 h-4 fill-current"></i>
+                                    <i data-lucide="star" class="w-4 h-4 fill-current"></i>
+                                    <i data-lucide="star" class="w-4 h-4 fill-current"></i>
+                                    <i data-lucide="star" class="w-4 h-4 fill-current"></i>
+                                </div>
+                                <p class="text-xs text-slate-700 leading-relaxed italic">
+                                    "Outstanding IT consulting! They helped us configure our cloud infrastructure and CI/CD automated deployment pipelines with zero downtime."
+                                </p>
+                            </div>
+                            <div class="pt-6 mt-6 border-t border-slate-200 flex items-center gap-3">
+                                <div class="w-10 h-10 rounded-full bg-emerald-600 text-white font-bold flex items-center justify-center text-xs">AV</div>
+                                <div>
+                                    <h4 class="font-bold text-navy-900 text-xs">Anil Varma</h4>
+                                    <p class="text-[11px] text-slate-500">Founder, CloudScale Systems</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </section> <!-- End of page-home -->
+            </section>
+
+
+
+        <!-- ================= PAGE 2: ABOUT US ================= -->
+        <section id="page-about" class="page-section">
+            <!-- PAGE BANNER -->
+            <div class="bg-navy-900 text-white py-16 border-b border-slate-800">
+                <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+                    <span class="text-xs font-extrabold text-brand-accent uppercase tracking-widest">Corporate Profile</span>
+                    <h1 class="text-3xl sm:text-5xl font-extrabold mt-2">About Infovative Technologies</h1>
+                    <p class="text-slate-400 mt-3 max-w-2xl mx-auto">A modern IT engineering and consulting partner delivering robust software solutions from Hyderabad, India.</p>
+                </div>
+            </div>
+
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 space-y-20">
+                <!-- COMPANY OVERVIEW -->
+                <div class="grid lg:grid-cols-2 gap-12 items-center">
+                    <div class="space-y-4">
+                        <span class="text-xs font-bold text-brand-blue uppercase tracking-widest">Who We Are</span>
+                        <h2 class="text-3xl font-extrabold text-navy-900">Driving Innovation Through Technology</h2>
+                        <p class="text-slate-600 leading-relaxed">
+                            Infovative Technologies is a well-established company specializing in Information Technology Services and Solutions, offering innovative and cost-effective solutions that encompass Business Strategy, Technical Architecture, Enterprise Data Warehousing (EDW), Business Intelligence (BI), Business Analytics, Predictive Analytics, Informatics, Cloud Solutions, Web Application Development, and Systems Integration. Infovative possesses recognized domain and Subject Matter Expertise (SME) in the Healthcare, Insurance, and Utility sectors.
+                        </p>
+                        <p class="text-slate-600 leading-relaxed">
+                            Infovative Technologies operates as a technology services firm with a focus on high-performance Web Application Development, Strategic IT Consulting, Enterprise Software Engineering, and SLA Support.
+
+Located in the dynamic technology corridor of Hyderabad, we assist business owners, expanding enterprises, and digital startups in transforming intricate domain requirements into robust digital products.
+                        </p>
+                    </div>
+                    <div class="bg-slate-100 border border-slate-200 rounded-2xl p-8 space-y-4">
+                        <h3 class="font-bold text-navy-900 text-lg">Quick Summary</h3>
+                        <div class="divide-y divide-slate-200">
+                            <div class="py-2.5 flex justify-between text-sm"><span class="text-slate-500">Legal Name</span> <span class="font-semibold text-slate-800">Infovative Technologies</span></div>
+                            <div class="py-2.5 flex justify-between text-sm"><span class="text-slate-500">Core Focus</span> <span class="font-semibold text-slate-800">Consulting, Software & Maintenance</span></div>
+                            <div class="py-2.5 flex justify-between text-sm"><span class="text-slate-500">Headquarters</span> <span class="font-semibold text-slate-800">Hyderabad, Telangana, India</span></div>
+                            <div class="py-2.5 flex justify-between text-sm"><span class="text-slate-500">Official Contact</span> <span class="font-semibold text-slate-800">+91 9490309944</span></div>
+                            <div class="py-2.5 flex justify-between text-sm"><span class="text-slate-500">Email Enquiries</span> <span class="font-semibold text-slate-800">contact@infovativetech.com</span></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- MISSION & VISION -->
+                <div class="grid md:grid-cols-2 gap-8">
+                    <div class="bg-navy-900 text-white p-8 sm:p-10 rounded-2xl border border-slate-800">
+                        <div class="w-12 h-12 bg-blue-500/20 text-brand-accent rounded-xl flex items-center justify-center mb-6">
+                            <i data-lucide="target" class="w-6 h-6"></i>
+                        </div>
+                        <h3 class="text-2xl font-bold mb-3">Our Mission</h3>
+                        <p class="text-slate-300 leading-relaxed">
+                            To empower organizations with dependable, well-architected, and user-centric software solutions that solve operational bottlenecks, foster innovation, and maximize return on technology investment.
+                        </p>
+                    </div>
+
+                    <div class="bg-brand-blue text-white p-8 sm:p-10 rounded-2xl shadow-xl shadow-blue-600/20">
+                        <div class="w-12 h-12 bg-white/20 text-white rounded-xl flex items-center justify-center mb-6">
+                            <i data-lucide="eye" class="w-6 h-6"></i>
+                        </div>
+                        <h3 class="text-2xl font-bold mb-3">Our Vision</h3>
+                        <p class="text-blue-50 leading-relaxed">
+                            To become a recognized regional and global leader in IT consulting and software product development, known for uncompromised quality, integrity, and proactive technical support.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- OUR CORPORATE VALUES CARDS SECTION WITH IMAGES -->
+            <section class="py-20 bg-slate-50">
+                <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                    <div class="text-center max-w-3xl mx-auto mb-16">
+                        <span class="text-xs font-extrabold uppercase text-brand-blue tracking-widest">Guiding Principles</span>
+                        <h2 class="text-3xl sm:text-4xl font-extrabold text-navy-900 mt-2">Our Corporate Values</h2>
+                    </div>
+
+                    <!-- 4 CARDS WITH REALISTIC IMAGES ON TOP & EXACT MATTER BELOW -->
+                    <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-8">
+                        
+                        <!-- Card 1: Integrity First -->
+                        <div class="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm hover:shadow-lg transition flex flex-col">
+                            <div class="h-48 w-full overflow-hidden bg-slate-100">
+                                <img src="https://images.unsplash.com/photo-1521791136064-7986c2920216?auto=format&fit=crop&w=600&q=80" alt="Integrity First" class="w-full h-full object-cover hover:scale-105 transition duration-300">
+                            </div>
+                            <div class="p-6 flex flex-col flex-grow">
+                                <h3 class="text-lg font-bold text-navy-900 mb-2">Integrity First</h3>
+                                <p class="text-xs text-slate-600 leading-relaxed">
+                                    Honest feasibility assessments, transparent pricing, and realistic timelines for every client engagement.
+                                </p>
+                            </div>
+                        </div>
+
+                        <!-- Card 2: Architectural Rigor -->
+                        <div class="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm hover:shadow-lg transition flex flex-col">
+                            <div class="h-48 w-full overflow-hidden bg-slate-100">
+                                <img src="https://images.unsplash.com/photo-1507238691740-187a5b1d37b8?auto=format&fit=crop&w=600&q=80" alt="Architectural Rigor" class="w-full h-full object-cover hover:scale-105 transition duration-300">
+                            </div>
+                            <div class="p-6 flex flex-col flex-grow">
+                                <h3 class="text-lg font-bold text-navy-900 mb-2">Architectural Rigor</h3>
+                                <p class="text-xs text-slate-600 leading-relaxed">
+                                    Building software for long-term scalability, easy maintenance, and robust cybersecurity standards.
+                                </p>
+                            </div>
+                        </div>
+
+                        <!-- Card 3: Client Partnership -->
+                        <div class="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm hover:shadow-lg transition flex flex-col">
+                            <div class="h-48 w-full overflow-hidden bg-slate-100">
+                                <img src="https://images.unsplash.com/photo-1600880292203-757bb62b4baf?auto=format&fit=crop&w=600&q=80" alt="Client Partnership" class="w-full h-full object-cover hover:scale-105 transition duration-300">
+                            </div>
+                            <div class="p-6 flex flex-col flex-grow">
+                                <h3 class="text-lg font-bold text-navy-900 mb-2">Client Partnership</h3>
+                                <p class="text-xs text-slate-600 leading-relaxed">
+                                    We treat your project as our own enterprise asset, taking ownership of technical challenges end-to-end.
+                                </p>
+                            </div>
+                        </div>
+
+                        <!-- Card 4: Continuous Learning -->
+                        <div class="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm hover:shadow-lg transition flex flex-col">
+                            <div class="h-48 w-full overflow-hidden bg-slate-100">
+                                <img src="https://images.unsplash.com/photo-1531482615713-2afd69097998?auto=format&fit=crop&w=600&q=80" alt="Continuous Learning" class="w-full h-full object-cover hover:scale-105 transition duration-300">
+                            </div>
+                            <div class="p-6 flex flex-col flex-grow">
+                                <h3 class="text-lg font-bold text-navy-900 mb-2">Continuous Learning</h3>
+                                <p class="text-xs text-slate-600 leading-relaxed">
+                                    Staying ahead in cloud engineering, AI integrations, and modern full-stack development frameworks.
+                                </p>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+            </section>
+        </section>
+
+        <!-- ================= PAGE 3: SERVICES HUB & SUB-VIEWS ================= -->
+        <section id="page-services" class="page-section">
+            <div class="bg-navy-900 text-white py-16 border-b border-slate-800">
+                <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+                    <span class="text-xs font-extrabold text-brand-accent uppercase tracking-widest">End-to-End Solutions</span>
+                    <h1 class="text-3xl sm:text-5xl font-extrabold mt-2">Services & Capabilities</h1>
+                    <p class="text-slate-400 mt-3 max-w-2xl mx-auto">Full-spectrum technology services crafted to support businesses at any stage of digital maturity.</p>
+                </div>
+            </div>
+
+            <!-- SERVICE SUB-PAGE CONTAINER (DYNAMICALLY ACCESSIBLE OR TOGGLED) -->
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+                
+                <!-- SERVICE FILTER NAV BUTTONS -->
+                <div class="flex flex-wrap gap-2 mb-12 pb-4 border-b border-slate-200">
+                    <button onclick="showServiceDetail('all')" class="service-nav-btn active px-4 py-2 rounded-lg text-xs font-bold bg-navy-800 text-white">All Services</button>
+                    <button onclick="showServiceDetail('consulting')" class="service-nav-btn px-4 py-2 rounded-lg text-xs font-bold bg-slate-100 text-slate-700 hover:bg-slate-200">IT Consulting</button>
+                    <button onclick="showServiceDetail('custom-software')" class="service-nav-btn px-4 py-2 rounded-lg text-xs font-bold bg-slate-100 text-slate-700 hover:bg-slate-200">Custom Software</button>
+                    <button onclick="showServiceDetail('enterprise')" class="service-nav-btn px-4 py-2 rounded-lg text-xs font-bold bg-slate-100 text-slate-700 hover:bg-slate-200">Enterprise Apps</button>
+                    <button onclick="showServiceDetail('web-mobile')" class="service-nav-btn px-4 py-2 rounded-lg text-xs font-bold bg-slate-100 text-slate-700 hover:bg-slate-200">Web & Mobile</button>
+                    <button onclick="showServiceDetail('ai-automation')" class="service-nav-btn px-4 py-2 rounded-lg text-xs font-bold bg-slate-100 text-slate-700 hover:bg-slate-200">AI & Automation</button>
+                    <button onclick="showServiceDetail('cloud')" class="service-nav-btn px-4 py-2 rounded-lg text-xs font-bold bg-slate-100 text-slate-700 hover:bg-slate-200">Cloud Solutions</button>
+                    <button onclick="showServiceDetail('qa')" class="service-nav-btn px-4 py-2 rounded-lg text-xs font-bold bg-slate-100 text-slate-700 hover:bg-slate-200">Testing & QA</button>
+                    <button onclick="showServiceDetail('support')" class="service-nav-btn px-4 py-2 rounded-lg text-xs font-bold bg-slate-100 text-slate-700 hover:bg-slate-200">IT Support</button>
+                </div>
+
+                <!-- SERVICES GRID DISPLAY (CENTER ALIGNED WITH REALISTIC IMAGES) -->
+                <div id="services-grid" class="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+                    
+                    <!-- 1. IT CONSULTING -->
+                    <div id="card-consulting" class="service-item-card bg-white p-8 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between text-center items-center">
+                        <div class="w-full flex flex-col items-center">
+                            <div class="w-full h-44 rounded-xl overflow-hidden mb-6 shadow-inner bg-slate-100 flex items-center justify-center">
+                                <img src="https://images.unsplash.com/photo-1552664730-d307ca884978?auto=format&fit=crop&w=600&q=80" alt="IT Strategy & Consulting" class="w-full h-full object-cover hover:scale-105 transition duration-300">
+                            </div>
+                            <h3 class="text-xl font-bold text-navy-900 mb-3">IT Strategy & Consulting</h3>
+                            <p class="text-slate-600 text-sm mb-6 leading-relaxed">
+                                Professional guidance on enterprise architecture, cloud readiness, security compliance, and legacy code modernization.
+                            </p>
+                            <h4 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Problems We Solve</h4>
+                            <ul class="space-y-2 text-xs text-slate-700 mb-6 text-left w-full px-4">
+                                <li class="flex items-center justify-center gap-2 text-center"><i data-lucide="check" class="w-3.5 h-3.5 text-brand-blue shrink-0"></i> High technical debt and legacy overhead</li>
+                                <li class="flex items-center justify-center gap-2 text-center"><i data-lucide="check" class="w-3.5 h-3.5 text-brand-blue shrink-0"></i> Unclear digital transformation roadmap</li>
+                                <li class="flex items-center justify-center gap-2 text-center"><i data-lucide="check" class="w-3.5 h-3.5 text-brand-blue shrink-0"></i> Inefficient database and server architecture</li>
+                            </ul>
+                        </div>
+                        <button onclick="navigateTo('contact')" class="w-full bg-slate-100 hover:bg-brand-blue hover:text-white text-navy-900 font-semibold py-2.5 rounded-xl text-xs transition text-center">
+                            Enquire About Consulting
+                        </button>
+                    </div>
+
+                    <!-- 2. CUSTOM SOFTWARE -->
+                    <div id="card-custom-software" class="service-item-card bg-white p-8 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between text-center items-center">
+                        <div class="w-full flex flex-col items-center">
+                            <div class="w-full h-44 rounded-xl overflow-hidden mb-6 shadow-inner bg-slate-100 flex items-center justify-center">
+                                <img src="https://images.unsplash.com/photo-1555066931-4365d14bab8c?auto=format&fit=crop&w=600&q=80" alt="Custom Software Development" class="w-full h-full object-cover hover:scale-105 transition duration-300">
+                            </div>
+                            <h3 class="text-xl font-bold text-navy-900 mb-3">Custom Software Development</h3>
+                            <p class="text-slate-600 text-sm mb-6 leading-relaxed">
+                                Tailored web applications engineered from scratch to automate complex internal business workflows and client portals.
+                            </p>
+                            <h4 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Key Features</h4>
+                            <ul class="space-y-2 text-xs text-slate-700 mb-6 text-left w-full px-4">
+                                <li class="flex items-center justify-center gap-2 text-center"><i data-lucide="check" class="w-3.5 h-3.5 text-cyan-600 shrink-0"></i> Scalable microservice/monolithic design</li>
+                                <li class="flex items-center justify-center gap-2 text-center"><i data-lucide="check" class="w-3.5 h-3.5 text-cyan-600 shrink-0"></i> Secure REST API architecture</li>
+                                <li class="flex items-center justify-center gap-2 text-center"><i data-lucide="check" class="w-3.5 h-3.5 text-cyan-600 shrink-0"></i> Complete ownership of source code</li>
+                            </ul>
+                        </div>
+                        <button onclick="navigateTo('contact')" class="w-full bg-slate-100 hover:bg-brand-blue hover:text-white text-navy-900 font-semibold py-2.5 rounded-xl text-xs transition text-center">
+                            Request Custom Solution
+                        </button>
+                    </div>
+
+                    <!-- 3. ENTERPRISE APPS -->
+                    <div id="card-enterprise" class="service-item-card bg-white p-8 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between text-center items-center">
+                        <div class="w-full flex flex-col items-center">
+                            <div class="w-full h-44 rounded-xl overflow-hidden mb-6 shadow-inner bg-slate-100 flex items-center justify-center">
+                                <img src="https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=600&q=80" alt="Enterprise Application Dev" class="w-full h-full object-cover hover:scale-105 transition duration-300">
+                            </div>
+                            <h3 class="text-xl font-bold text-navy-900 mb-3">Enterprise Application Dev</h3>
+                            <p class="text-slate-600 text-sm mb-6 leading-relaxed">
+                                High-grade ERP, CRM, and internal portal systems built to withstand heavy user loads and security standards.
+                            </p>
+                            <h4 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Benefits</h4>
+                            <ul class="space-y-2 text-xs text-slate-700 mb-6 text-left w-full px-4">
+                                <li class="flex items-center justify-center gap-2 text-center"><i data-lucide="check" class="w-3.5 h-3.5 text-indigo-600 shrink-0"></i> Centralized operational management</li>
+                                <li class="flex items-center justify-center gap-2 text-center"><i data-lucide="check" class="w-3.5 h-3.5 text-indigo-600 shrink-0"></i> Role-based access control (RBAC)</li>
+                                <li class="flex items-center justify-center gap-2 text-center"><i data-lucide="check" class="w-3.5 h-3.5 text-indigo-600 shrink-0"></i> Seamless third-party software integration</li>
+                            </ul>
+                        </div>
+                        <button onclick="navigateTo('contact')" class="w-full bg-slate-100 hover:bg-brand-blue hover:text-white text-navy-900 font-semibold py-2.5 rounded-xl text-xs transition text-center">
+                            Discuss Enterprise Project
+                        </button>
+                    </div>
+
+                    <!-- 4. WEB & MOBILE -->
+                    <div id="card-web-mobile" class="service-item-card bg-white p-8 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between text-center items-center">
+                        <div class="w-full flex flex-col items-center">
+                            <div class="w-full h-44 rounded-xl overflow-hidden mb-6 shadow-inner bg-slate-100 flex items-center justify-center">
+                                <img src="https://images.unsplash.com/photo-1512941937669-90a1b58e7e9c?auto=format&fit=crop&w=600&q=80" alt="Web & Mobile Development" class="w-full h-full object-cover hover:scale-105 transition duration-300">
+                            </div>
+                            <h3 class="text-xl font-bold text-navy-900 mb-3">Web & Mobile Development</h3>
+                            <p class="text-slate-600 text-sm mb-6 leading-relaxed">
+                                Responsive web applications and cross-platform mobile solutions with fluid user interfaces and high performance.
+                            </p>
+                            <h4 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Tech Stack</h4>
+                            <ul class="space-y-2 text-xs text-slate-700 mb-6 text-left w-full px-4">
+                                <li class="flex items-center justify-center gap-2 text-center"><i data-lucide="check" class="w-3.5 h-3.5 text-purple-600 shrink-0"></i> Modern JS frameworks (React, Vue, Angular)</li>
+                                <li class="flex items-center justify-center gap-2 text-center"><i data-lucide="check" class="w-3.5 h-3.5 text-purple-600 shrink-0"></i> Responsive Mobile Applications</li>
+                                <li class="flex items-center justify-center gap-2 text-center"><i data-lucide="check" class="w-3.5 h-3.5 text-purple-600 shrink-0"></i> Progressive Web App (PWA) support</li>
+                            </ul>
+                        </div>
+                        <button onclick="navigateTo('contact')" class="w-full bg-slate-100 hover:bg-brand-blue hover:text-white text-navy-900 font-semibold py-2.5 rounded-xl text-xs transition text-center">
+                            Build Mobile/Web App
+                        </button>
+                    </div>
+
+                    <!-- 5. AI & AUTOMATION -->
+                    <div id="card-ai-automation" class="service-item-card bg-white p-8 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between text-center items-center">
+                        <div class="w-full flex flex-col items-center">
+                            <div class="w-full h-44 rounded-xl overflow-hidden mb-6 shadow-inner bg-slate-100 flex items-center justify-center">
+                                <img src="https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=600&q=80" alt="AI & Business Automation" class="w-full h-full object-cover hover:scale-105 transition duration-300">
+                            </div>
+                            <h3 class="text-xl font-bold text-navy-900 mb-3">AI & Business Automation</h3>
+                            <p class="text-slate-600 text-sm mb-6 leading-relaxed">
+                                Automate routine manual tasks using custom algorithms, data extraction tools, and practical AI integrations.
+                            </p>
+                            <h4 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Use Cases</h4>
+                            <ul class="space-y-2 text-xs text-slate-700 mb-6 text-left w-full px-4">
+                                <li class="flex items-center justify-center gap-2 text-center"><i data-lucide="check" class="w-3.5 h-3.5 text-emerald-600 shrink-0"></i> Automated document parsing & processing</li>
+                                <li class="flex items-center justify-center gap-2 text-center"><i data-lucide="check" class="w-3.5 h-3.5 text-emerald-600 shrink-0"></i> Smart data dashboards & reporting</li>
+                                <li class="flex items-center justify-center gap-2 text-center"><i data-lucide="check" class="w-3.5 h-3.5 text-emerald-600 shrink-0"></i> Workflow bot integration</li>
+                            </ul>
+                        </div>
+                        <button onclick="navigateTo('contact')" class="w-full bg-slate-100 hover:bg-brand-blue hover:text-white text-navy-900 font-semibold py-2.5 rounded-xl text-xs transition text-center">
+                            Explore Automation
+                        </button>
+                    </div>
+
+                    <!-- 6. CLOUD SOLUTIONS -->
+                    <div id="card-cloud" class="service-item-card bg-white p-8 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between text-center items-center">
+                        <div class="w-full flex flex-col items-center">
+                            <div class="w-full h-44 rounded-xl overflow-hidden mb-6 shadow-inner bg-slate-100 flex items-center justify-center">
+                                <img src="https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=600&q=80" alt="Cloud Solutions & DevOps" class="w-full h-full object-cover hover:scale-105 transition duration-300">
+                            </div>
+                            <h3 class="text-xl font-bold text-navy-900 mb-3">Cloud Solutions & DevOps</h3>
+                            <p class="text-slate-600 text-sm mb-6 leading-relaxed">
+                                Cloud deployment, automated CI/CD pipeline establishment, infrastructure management, and cloud cost optimization.
+                            </p>
+                            <h4 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Highlights</h4>
+                            <ul class="space-y-2 text-xs text-slate-700 mb-6 text-left w-full px-4">
+                                <li class="flex items-center justify-center gap-2 text-center"><i data-lucide="check" class="w-3.5 h-3.5 text-sky-600 shrink-0"></i> AWS & Azure setup & deployment</li>
+                                <li class="flex items-center justify-center gap-2 text-center"><i data-lucide="check" class="w-3.5 h-3.5 text-sky-600 shrink-0"></i> Containerization with Docker & Kubernetes</li>
+                                <li class="flex items-center justify-center gap-2 text-center"><i data-lucide="check" class="w-3.5 h-3.5 text-sky-600 shrink-0"></i> Automated backup & disaster recovery</li>
+                            </ul>
+                        </div>
+                        <button onclick="navigateTo('contact')" class="w-full bg-slate-100 hover:bg-brand-blue hover:text-white text-navy-900 font-semibold py-2.5 rounded-xl text-xs transition text-center">
+                            Setup Cloud Infrastructure
+                        </button>
+                    </div>
+
+                    <!-- 7. TESTING & QA -->
+                    <div id="card-qa" class="service-item-card bg-white p-8 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between text-center items-center">
+                        <div class="w-full flex flex-col items-center">
+                            <div class="w-full h-44 rounded-xl overflow-hidden mb-6 shadow-inner bg-slate-100 flex items-center justify-center">
+                                <img src="https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?auto=format&fit=crop&w=600&q=80" alt="Software Testing & QA" class="w-full h-full object-cover hover:scale-105 transition duration-300">
+                            </div>
+                            <h3 class="text-xl font-bold text-navy-900 mb-3">Software Testing & QA</h3>
+                            <p class="text-slate-600 text-sm mb-6 leading-relaxed">
+                                End-to-end software quality assurance including functional, performance, security, and automated integration testing.
+                            </p>
+                            <h4 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">QA Coverage</h4>
+                            <ul class="space-y-2 text-xs text-slate-700 mb-6 text-left w-full px-4">
+                                <li class="flex items-center justify-center gap-2 text-center"><i data-lucide="check" class="w-3.5 h-3.5 text-amber-600 shrink-0"></i> Automated regression testing</li>
+                                <li class="flex items-center justify-center gap-2 text-center"><i data-lucide="check" class="w-3.5 h-3.5 text-amber-600 shrink-0"></i> Vulnerability & security scanning</li>
+                                <li class="flex items-center justify-center gap-2 text-center"><i data-lucide="check" class="w-3.5 h-3.5 text-amber-600 shrink-0"></i> User experience validation</li>
+                            </ul>
+                        </div>
+                        <button onclick="navigateTo('contact')" class="w-full bg-slate-100 hover:bg-brand-blue hover:text-white text-navy-900 font-semibold py-2.5 rounded-xl text-xs transition text-center">
+                            Audit Software Quality
+                        </button>
+                    </div>
+
+                    <!-- 8. IT SUPPORT & MAINTENANCE -->
+                    <div id="card-support" class="service-item-card bg-white p-8 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between text-center items-center">
+                        <div class="w-full flex flex-col items-center">
+                            <div class="w-full h-44 rounded-xl overflow-hidden mb-6 shadow-inner bg-slate-100 flex items-center justify-center">
+                                <img src="https://images.unsplash.com/photo-1521737604893-d14cc237f11d?auto=format&fit=crop&w=600&q=80" alt="IT Support & Maintenance" class="w-full h-full object-cover hover:scale-105 transition duration-300">
+                            </div>
+                            <h3 class="text-xl font-bold text-navy-900 mb-3">IT Support & Maintenance</h3>
+                            <p class="text-slate-600 text-sm mb-6 leading-relaxed">
+                                Continuous technical support, urgent bug fixing, performance monitoring, and framework version upgrades for live systems.
+                            </p>
+                            <h4 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Support Scope</h4>
+                            <ul class="space-y-2 text-xs text-slate-700 mb-6 text-left w-full px-4">
+                                <li class="flex items-center justify-center gap-2 text-center"><i data-lucide="check" class="w-3.5 h-3.5 text-rose-600 shrink-0"></i> 24/7 critical system monitoring</li>
+                                <li class="flex items-center justify-center gap-2 text-center"><i data-lucide="check" class="w-3.5 h-3.5 text-rose-600 shrink-0"></i> Immediate bug remediation SLA</li>
+                                <li class="flex items-center justify-center gap-2 text-center"><i data-lucide="check" class="w-3.5 h-3.5 text-rose-600 shrink-0"></i> Database maintenance & indexing</li>
+                            </ul>
+                        </div>
+                        <button onclick="navigateTo('contact')" class="w-full bg-slate-100 hover:bg-brand-blue hover:text-white text-navy-900 font-semibold py-2.5 rounded-xl text-xs transition text-center">
+                            Get SLA Support
+                        </button>
+                    </div>
+
+                </div>
+            </div>
+        </section>
+
+     <!-- ================= PAGE 4: PRODUCT DEV ================= -->
+        <div id="page-product-dev" class="page-section">
+            <div class="bg-navy-900 text-white py-16 border-b border-slate-800">
+                <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+                    <span class="text-xs font-extrabold text-cyan-400 uppercase tracking-widest">Engineering Lifecycle</span>
+                    <h1 class="text-3xl sm:text-5xl font-extrabold mt-2">Product Development Framework</h1>
+                    <p class="text-slate-400 mt-3 max-w-2xl mx-auto">How Infovative Technologies transforms concepts into market-ready software assets.</p>
+                </div>
+            </div>
+
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+                <!-- 4 Cards Side-by-Side in 2 Rows with Larger Dimensions -->
+                <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-8">
+                    
+                    <!-- 1. Idea & Discovery -->
+                    <div class="bg-white p-8 rounded-2xl border border-slate-200 shadow-md hover:shadow-lg transition text-center flex flex-col justify-between items-center">
+                        <div class="w-full">
+                            <div class="w-full h-44 rounded-xl overflow-hidden mb-5 bg-slate-100 shadow-inner">
+                                <img src="https://images.unsplash.com/photo-1531403009284-440f080d1e12?auto=format&fit=crop&w=600&q=80" alt="Idea & Discovery Phase" class="w-full h-full object-cover">
+                            </div>
+                            <h4 class="font-bold text-navy-900 text-base mb-3">1. Idea & Discovery Phase</h4>
+                            <p class="text-slate-600 text-sm leading-relaxed">Understanding vision, targeted end-users, and performing technical feasibility checks.</p>
+                        </div>
+                    </div>
+
+                    <!-- 2. Requirements & Specification -->
+                    <div class="bg-white p-8 rounded-2xl border border-slate-200 shadow-md hover:shadow-lg transition text-center flex flex-col justify-between items-center">
+                        <div class="w-full">
+                            <div class="w-full h-44 rounded-xl overflow-hidden mb-5 bg-slate-100 shadow-inner">
+                                <img src="https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?auto=format&fit=crop&w=600&q=80" alt="Requirements & Specification" class="w-full h-full object-cover">
+                            </div>
+                            <h4 class="font-bold text-navy-900 text-base mb-3">2. Requirements & Specification</h4>
+                            <p class="text-slate-600 text-sm leading-relaxed">Drafting comprehensive functional specifications and system requirement documents.</p>
+                        </div>
+                    </div>
+
+                    <!-- 3. UI/UX Architecture -->
+                    <div class="bg-white p-8 rounded-2xl border border-slate-200 shadow-md hover:shadow-lg transition text-center flex flex-col justify-between items-center">
+                        <div class="w-full">
+                            <div class="w-full h-44 rounded-xl overflow-hidden mb-5 bg-slate-100 shadow-inner">
+                                <img src="https://images.unsplash.com/photo-1581291518633-83b4ebd1d83e?auto=format&fit=crop&w=600&q=80" alt="UI/UX Architecture" class="w-full h-full object-cover">
+                            </div>
+                            <h4 class="font-bold text-navy-900 text-base mb-3">3. UI/UX Architecture</h4>
+                            <p class="text-slate-600 text-sm leading-relaxed">Creating intuitive user interfaces, clickable wireframes, and responsive design flows.</p>
+                        </div>
+                    </div>
+
+                    <!-- 4. Agile Sprint Planning -->
+                    <div class="bg-white p-8 rounded-2xl border border-slate-200 shadow-md hover:shadow-lg transition text-center flex flex-col justify-between items-center">
+                        <div class="w-full">
+                            <div class="w-full h-44 rounded-xl overflow-hidden mb-5 bg-slate-100 shadow-inner">
+                                <img src="https://images.unsplash.com/photo-1507238691740-187a5b1d37b8?auto=format&fit=crop&w=600&q=80" alt="Agile Sprint Planning" class="w-full h-full object-cover">
+                            </div>
+                            <h4 class="font-bold text-navy-900 text-base mb-3">4. Agile Sprint Planning</h4>
+                            <p class="text-slate-600 text-sm leading-relaxed">Structuring development cycles into manageable sprints with clear goals.</p>
+                        </div>
+                    </div>
+
+                    <!-- 5. Full-Stack Engineering -->
+                    <div class="bg-white p-8 rounded-2xl border border-slate-200 shadow-md hover:shadow-lg transition text-center flex flex-col justify-between items-center">
+                        <div class="w-full">
+                            <div class="w-full h-44 rounded-xl overflow-hidden mb-5 bg-slate-100 shadow-inner">
+                                <img src="https://images.unsplash.com/photo-1555066931-4365d14bab8c?auto=format&fit=crop&w=600&q=80" alt="Full-Stack Engineering" class="w-full h-full object-cover">
+                            </div>
+                            <h4 class="font-bold text-navy-900 text-base mb-3">5. Full-Stack Engineering</h4>
+                            <p class="text-slate-600 text-sm leading-relaxed">Writing backend APIs and responsive frontend modules using modern frameworks.</p>
+                        </div>
+                    </div>
+
+                    <!-- 6. Rigorous Testing & QA -->
+                    <div class="bg-white p-8 rounded-2xl border border-slate-200 shadow-md hover:shadow-lg transition text-center flex flex-col justify-between items-center">
+                        <div class="w-full">
+                            <div class="w-full h-44 rounded-xl overflow-hidden mb-5 bg-slate-100 shadow-inner">
+                                <img src="https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?auto=format&fit=crop&w=600&q=80" alt="Rigorous Testing & QA" class="w-full h-full object-cover">
+                            </div>
+                            <h4 class="font-bold text-navy-900 text-base mb-3">6. Rigorous Testing & QA</h4>
+                            <p class="text-slate-600 text-sm leading-relaxed">Executing automated regression tests and security vulnerability checks.</p>
+                        </div>
+                    </div>
+
+                    <!-- 7. Cloud Deployment -->
+                    <div class="bg-white p-8 rounded-2xl border border-slate-200 shadow-md hover:shadow-lg transition text-center flex flex-col justify-between items-center">
+                        <div class="w-full">
+                            <div class="w-full h-44 rounded-xl overflow-hidden mb-5 bg-slate-100 shadow-inner">
+                                <img src="https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=600&q=80" alt="Cloud Deployment & DevOps" class="w-full h-full object-cover">
+                            </div>
+                            <h4 class="font-bold text-navy-900 text-base mb-3">7. Cloud Deployment</h4>
+                            <p class="text-slate-600 text-sm leading-relaxed">Setting up secure AWS/Azure environments and CI/CD automated deployment pipelines.</p>
+                        </div>
+                    </div>
+
+                    <!-- 8. Ongoing Maintenance -->
+                    <div class="bg-white p-8 rounded-2xl border border-slate-200 shadow-md hover:shadow-lg transition text-center flex flex-col justify-between items-center">
+                        <div class="w-full">
+                            <div class="w-full h-44 rounded-xl overflow-hidden mb-5 bg-slate-100 shadow-inner">
+                                <img src="https://images.unsplash.com/photo-1521737604893-d14cc237f11d?auto=format&fit=crop&w=600&q=80" alt="Ongoing Maintenance & Support" class="w-full h-full object-cover">
+                            </div>
+                            <h4 class="font-bold text-navy-900 text-base mb-3">8. Ongoing Maintenance</h4>
+                            <p class="text-slate-600 text-sm leading-relaxed">Providing 24/7 server monitoring, security patches, and routine feature enhancements.</p>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
+        <!-- ================= PAGE 5: INDUSTRIES ================= -->
+        <div id="page-industries" class="page-section">
+            <div class="bg-navy-900 text-white py-16 border-b border-slate-800">
+                <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+                    <span class="text-xs font-extrabold text-brand-accent uppercase tracking-widest">Domain Expertise</span>
+                    <h1 class="text-3xl sm:text-5xl font-extrabold mt-2">Industries We Serve</h1>
+                    <p class="text-slate-400 mt-3 max-w-2xl mx-auto">Providing customized technology solutions tailored to distinct sector compliance and operational needs.</p>
+                </div>
+            </div>
+
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+                <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-8">
+                    
+                    <!-- 1. Banking & Finance -->
+                    <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-md hover:shadow-lg transition text-center flex flex-col justify-between items-center">
+                        <div class="w-full">
+                            <div class="w-full h-36 rounded-xl overflow-hidden mb-4 bg-slate-100 shadow-inner">
+                                <img src="https://images.unsplash.com/photo-1559526324-4b87b5e36e44?auto=format&fit=crop&w=600&q=80" alt="Banking & Finance" class="w-full h-full object-cover">
+                            </div>
+                            <h3 class="font-bold text-navy-900 text-lg mb-2">Banking & Finance</h3>
+                            <p class="text-slate-600 text-xs leading-relaxed">Secure transaction processing portals, financial analytics dashboards, and encrypted customer verification systems.</p>
+                        </div>
+                    </div>
+
+                    <!-- 2. Healthcare -->
+                    <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-md hover:shadow-lg transition text-center flex flex-col justify-between items-center">
+                        <div class="w-full">
+                            <div class="w-full h-36 rounded-xl overflow-hidden mb-4 bg-slate-100 shadow-inner">
+                                <img src="https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?auto=format&fit=crop&w=600&q=80" alt="Healthcare" class="w-full h-full object-cover">
+                            </div>
+                            <h3 class="font-bold text-navy-900 text-lg mb-2">Healthcare</h3>
+                            <p class="text-slate-600 text-xs leading-relaxed">Patient management software, digital prescription tools, and secure clinical record management solutions.</p>
+                        </div>
+                    </div>
+
+                    <!-- 3. Real Estate -->
+                    <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-md hover:shadow-lg transition text-center flex flex-col justify-between items-center">
+                        <div class="w-full">
+                            <div class="w-full h-36 rounded-xl overflow-hidden mb-4 bg-slate-100 shadow-inner">
+                                <img src="https://images.unsplash.com/photo-1560518883-ce09059eeffa?auto=format&fit=crop&w=600&q=80" alt="Real Estate" class="w-full h-full object-cover">
+                            </div>
+                            <h3 class="font-bold text-navy-900 text-lg mb-2">Real Estate</h3>
+                            <p class="text-slate-600 text-xs leading-relaxed">Property listing management portals, CRM integrations, and automated lead tracking platforms for agencies.</p>
+                        </div>
+                    </div>
+
+                    <!-- 4. Education & EdTech -->
+                    <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-md hover:shadow-lg transition text-center flex flex-col justify-between items-center">
+                        <div class="w-full">
+                            <div class="w-full h-36 rounded-xl overflow-hidden mb-4 bg-slate-100 shadow-inner">
+                                <img src="https://images.unsplash.com/photo-1523240795612-9a054b0db644?auto=format&fit=crop&w=600&q=80" alt="Education & EdTech" class="w-full h-full object-cover">
+                            </div>
+                            <h3 class="font-bold text-navy-900 text-lg mb-2">Education & EdTech</h3>
+                            <p class="text-slate-600 text-xs leading-relaxed">Learning management platforms, student tracking dashboards, and online exam management systems.</p>
+                        </div>
+                    </div>
+
+                    <!-- 5. Retail & E-commerce -->
+                    <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-md hover:shadow-lg transition text-center flex flex-col justify-between items-center">
+                        <div class="w-full">
+                            <div class="w-full h-36 rounded-xl overflow-hidden mb-4 bg-slate-100 shadow-inner">
+                                <img src="https://images.unsplash.com/photo-1472851294608-062f824d29cc?auto=format&fit=crop&w=600&q=80" alt="Retail & E-commerce" class="w-full h-full object-cover">
+                            </div>
+                            <h3 class="font-bold text-navy-900 text-lg mb-2">Retail & E-commerce</h3>
+                            <p class="text-slate-600 text-xs leading-relaxed">Custom e-commerce applications, inventory tracking, payment gateway integrations, and order management tools.</p>
+                        </div>
+                    </div>
+
+                    <!-- 6. Manufacturing -->
+                    <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-md hover:shadow-lg transition text-center flex flex-col justify-between items-center">
+                        <div class="w-full">
+                            <div class="w-full h-36 rounded-xl overflow-hidden mb-4 bg-slate-100 shadow-inner">
+                                <img src="https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?auto=format&fit=crop&w=600&q=80" alt="Manufacturing" class="w-full h-full object-cover">
+                            </div>
+                            <h3 class="font-bold text-navy-900 text-lg mb-2">Manufacturing</h3>
+                            <p class="text-slate-600 text-xs leading-relaxed">Production lifecycle software, supply chain tracking, and equipment maintenance scheduling portals.</p>
+                        </div>
+                    </div>
+
+                    <!-- 7. Logistics & Supply Chain -->
+                    <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-md hover:shadow-lg transition text-center flex flex-col justify-between items-center">
+                        <div class="w-full">
+                            <div class="w-full h-36 rounded-xl overflow-hidden mb-4 bg-slate-100 shadow-inner">
+                                <img src="https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&w=600&q=80" alt="Logistics & Supply Chain" class="w-full h-full object-cover">
+                            </div>
+                            <h3 class="font-bold text-navy-900 text-lg mb-2">Logistics & Supply Chain</h3>
+                            <p class="text-slate-600 text-xs leading-relaxed">Shipment tracking systems, route optimization tools, and warehouse dispatch management dashboards.</p>
+                        </div>
+                    </div>
+
+                    <!-- 8. Professional Services -->
+                    <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-md hover:shadow-lg transition text-center flex flex-col justify-between items-center">
+                        <div class="w-full">
+                            <div class="w-full h-36 rounded-xl overflow-hidden mb-4 bg-slate-100 shadow-inner">
+                                <img src="https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?auto=format&fit=crop&w=600&q=80" alt="Professional Services" class="w-full h-full object-cover">
+                            </div>
+                            <h3 class="font-bold text-navy-900 text-lg mb-2">Professional Services</h3>
+                            <p class="text-slate-600 text-xs leading-relaxed">Client billing engines, automated invoicing, project time-tracking platforms, and internal document portals.</p>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
+        <!-- ================= PAGE 6: PORTFOLIO ================= -->
+        <section id="page-portfolio" class="page-section">
+            <div class="bg-navy-900 text-white py-16 border-b border-slate-800">
+                <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+                    <span class="text-xs font-extrabold text-brand-accent uppercase tracking-widest">Sample Work</span>
+                    <h1 class="text-3xl sm:text-5xl font-extrabold mt-2">Portfolio & Project Prototypes</h1>
+                    <p class="text-slate-400 mt-3 max-w-2xl mx-auto">Explore representative sample project architectures developed by our team.</p>
+                </div>
+            </div>
+
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+                <!-- PORTFOLIO FILTER -->
+                <div class="flex flex-wrap justify-center gap-2 mb-12">
+                    <button onclick="filterPortfolio('all')" class="port-filter-btn active px-4 py-2 rounded-lg text-xs font-bold bg-brand-blue text-white">All Projects</button>
+                    <button onclick="filterPortfolio('web')" class="port-filter-btn px-4 py-2 rounded-lg text-xs font-bold bg-slate-200 text-slate-700">Web Platforms</button>
+                    <button onclick="filterPortfolio('enterprise')" class="port-filter-btn px-4 py-2 rounded-lg text-xs font-bold bg-slate-200 text-slate-700">Enterprise CRM</button>
+                    <button onclick="filterPortfolio('automation')" class="port-filter-btn px-4 py-2 rounded-lg text-xs font-bold bg-slate-200 text-slate-700">Automation Tools</button>
+                </div>
+
+                <div class="grid md:grid-cols-3 gap-8">
+                    <!-- SAMPLE PROJECT 1 -->
+                    <div class="port-card web bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm hover:shadow-md transition">
+                        <div class="h-48 bg-gradient-to-tr from-navy-900 to-blue-900 p-6 flex flex-col justify-between text-white">
+                            <span class="text-xs bg-blue-500/30 border border-blue-400/30 text-blue-200 px-2.5 py-1 rounded-full w-max">SaaS Platform</span>
+                            <h3 class="text-lg font-bold">Enterprise Resource Dashboard</h3>
+                        </div>
+                        <div class="p-6">
+                            <p class="text-xs text-slate-600 leading-relaxed mb-4">Sample multi-tenant SaaS dashboard for tracking operational KPIs, team task allocation, and automated invoice generation.</p>
+                            <div class="flex flex-wrap gap-1.5 text-[11px] font-mono text-slate-500 mb-4">
+                                <span class="bg-slate-100 px-2 py-0.5 rounded">React</span>
+                                <span class="bg-slate-100 px-2 py-0.5 rounded">Node.js</span>
+                                <span class="bg-slate-100 px-2 py-0.5 rounded">PostgreSQL</span>
+                            </div>
+                            <button onclick="openModal('projectModal1')" class="text-xs font-bold text-brand-blue hover:underline flex items-center gap-1">
+                                View Architecture Details <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- SAMPLE PROJECT 2 -->
+                    <div class="port-card enterprise bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm hover:shadow-md transition">
+                        <div class="h-48 bg-gradient-to-tr from-slate-900 to-indigo-950 p-6 flex flex-col justify-between text-white">
+                            <span class="text-xs bg-indigo-500/30 border border-indigo-400/30 text-indigo-200 px-2.5 py-1 rounded-full w-max">Enterprise Solution</span>
+                            <h3 class="text-lg font-bold">Supply Chain Tracker</h3>
+                        </div>
+                        <div class="p-6">
+                            <p class="text-xs text-slate-600 leading-relaxed mb-4">Sample logistics tracking system providing real-time shipment monitoring, inventory reconciliation, and role-based access.</p>
+                            <div class="flex flex-wrap gap-1.5 text-[11px] font-mono text-slate-500 mb-4">
+                                <span class="bg-slate-100 px-2 py-0.5 rounded">Python</span>
+                                <span class="bg-slate-100 px-2 py-0.5 rounded">REST API</span>
+                                <span class="bg-slate-100 px-2 py-0.5 rounded">AWS</span>
+                            </div>
+                            <button onclick="openModal('projectModal2')" class="text-xs font-bold text-brand-blue hover:underline flex items-center gap-1">
+                                View Architecture Details <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- SAMPLE PROJECT 3 -->
+                    <div class="port-card automation bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm hover:shadow-md transition">
+                        <div class="h-48 bg-gradient-to-tr from-navy-900 to-emerald-950 p-6 flex flex-col justify-between text-white">
+                            <span class="text-xs bg-emerald-500/30 border border-emerald-400/30 text-emerald-200 px-2.5 py-1 rounded-full w-max">AI & Automation</span>
+                            <h3 class="text-lg font-bold">Document Parsing Pipeline</h3>
+                        </div>
+                        <div class="p-6">
+                            <p class="text-xs text-slate-600 leading-relaxed mb-4">Automated document processing workflow that extracts structured data from PDF invoices and updates accounting software.</p>
+                            <div class="flex flex-wrap gap-1.5 text-[11px] font-mono text-slate-500 mb-4">
+                                <span class="bg-slate-100 px-2 py-0.5 rounded">Python</span>
+                                <span class="bg-slate-100 px-2 py-0.5 rounded">OCR</span>
+                                <span class="bg-slate-100 px-2 py-0.5 rounded">Docker</span>
+                            </div>
+                            <button onclick="openModal('projectModal3')" class="text-xs font-bold text-brand-blue hover:underline flex items-center gap-1">
+                                View Architecture Details <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================= PAGE 7: CAREERS ================= -->
+        <section id="page-careers" class="page-section">
+            <div class="bg-navy-900 text-white py-16 border-b border-slate-800">
+                <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+                    <span class="text-xs font-extrabold text-brand-accent uppercase tracking-widest">Join Our Team</span>
+                    <h1 class="text-3xl sm:text-5xl font-extrabold mt-2">Careers at Infovative Technologies</h1>
+                    <p class="text-slate-400 mt-3 max-w-2xl mx-auto">Build impact-driven software solutions in a collaborative technical culture.</p>
+                </div>
+            </div>
+
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 space-y-12">
+                <div class="text-center max-w-2xl mx-auto">
+                    <h2 class="text-2xl font-bold text-navy-900">Current Opportunities</h2>
+                    <p class="text-slate-600 text-sm mt-1">We are always searching for disciplined engineers, UI/UX designers, and tech consultants.</p>
+                </div>
+
+                <div class="space-y-4 max-w-4xl mx-auto">
+                    <!-- JOB 1 -->
+                    <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                        <div>
+                            <span class="text-[10px] font-bold uppercase tracking-wider bg-blue-100 text-brand-blue px-2.5 py-0.5 rounded-full">Full Time • Hyderabad</span>
+                            <h3 class="text-lg font-bold text-navy-900 mt-1">Senior Full-Stack Web Developer</h3>
+                            <p class="text-xs text-slate-500 mt-0.5">Experience: 3-5 Years • Tech: React, Node.js, REST APIs, SQL</p>
+                        </div>
+                        <button onclick="openModal('careerModal')" class="bg-navy-800 hover:bg-navy-900 text-white font-semibold text-xs px-5 py-2.5 rounded-xl transition shrink-0">
+                            Apply Now
+                        </button>
+                    </div>
+
+                    <!-- JOB 2 -->
+                    <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                        <div>
+                            <span class="text-[10px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-700 px-2.5 py-0.5 rounded-full">Full Time • Hyderabad</span>
+                            <h3 class="text-lg font-bold text-navy-900 mt-1">Software QA & Test Automation Engineer</h3>
+                            <p class="text-xs text-slate-500 mt-0.5">Experience: 2-4 Years • Tech: Selenium, API Automation, Manual QA</p>
+                        </div>
+                        <button onclick="openModal('careerModal')" class="bg-navy-800 hover:bg-navy-900 text-white font-semibold text-xs px-5 py-2.5 rounded-xl transition shrink-0">
+                            Apply Now
+                        </button>
+                    </div>
+
+                    <!-- JOB 3 -->
+                    <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                        <div>
+                            <span class="text-[10px] font-bold uppercase tracking-wider bg-purple-100 text-purple-700 px-2.5 py-0.5 rounded-full">Full Time / Remote</span>
+                            <h3 class="text-lg font-bold text-navy-900 mt-1">IT Technical Consultant</h3>
+                            <p class="text-xs text-slate-500 mt-0.5">Experience: 4+ Years • Scope: Tech architecture, client discovery</p>
+                        </div>
+                        <button onclick="openModal('careerModal')" class="bg-navy-800 hover:bg-navy-900 text-white font-semibold text-xs px-5 py-2.5 rounded-xl transition shrink-0">
+                            Apply Now
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================= PAGE 8: CONTACT US ================= -->
+        <section id="page-contact" class="page-section">
+            <div class="bg-navy-900 text-white py-16 border-b border-slate-800">
+                <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+                    <span class="text-xs font-extrabold text-brand-accent uppercase tracking-widest">Get In Touch</span>
+                    <h1 class="text-3xl sm:text-5xl font-extrabold mt-2">Contact Infovative Technologies</h1>
+                    <p class="text-slate-400 mt-3 max-w-2xl mx-auto">Have a software project, consulting enquiry, or technical maintenance request? Reach out to our engineering team.</p>
+                </div>
+            </div>
+
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+                <div class="grid lg:grid-cols-12 gap-12">
+                    
+                    <!-- CONTACT FORM -->
+                    <div class="lg:col-span-7 bg-white p-8 sm:p-10 rounded-2xl border border-slate-200 shadow-sm">
+                        <h2 class="text-2xl font-bold text-navy-900 mb-2">Send Us a Project Enquiry</h2>
+                        <p class="text-xs text-slate-500 mb-8">Fill out the details below and our technical lead will contact you within 24 business hours.</p>
+
+                        <form id="contactForm" onsubmit="handleFormSubmit(event)" class="space-y-6">
+                            <div class="grid sm:grid-cols-2 gap-6">
+                                <div>
+                                    <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Your Full Name *</label>
+                                    <input type="text" id="contactName" required placeholder="John Doe" class="w-full px-4 py-3 text-sm rounded-xl border border-slate-300 focus:outline-none focus:border-brand-blue focus:ring-1 focus:ring-brand-blue transition">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Email Address *</label>
+                                    <input type="email" id="contactEmail" required placeholder="john@company.com" class="w-full px-4 py-3 text-sm rounded-xl border border-slate-300 focus:outline-none focus:border-brand-blue focus:ring-1 focus:ring-brand-blue transition">
+                                </div>
+                            </div>
+
+                            <div class="grid sm:grid-cols-2 gap-6">
+                                <div>
+                                    <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Phone / WhatsApp *</label>
+                                    <input type="tel" id="contactPhone" required placeholder="+91 9490309944" class="w-full px-4 py-3 text-sm rounded-xl border border-slate-300 focus:outline-none focus:border-brand-blue focus:ring-1 focus:ring-brand-blue transition">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Company Name</label>
+                                    <input type="text" id="contactCompany" placeholder="Your Enterprise Ltd" class="w-full px-4 py-3 text-sm rounded-xl border border-slate-300 focus:outline-none focus:border-brand-blue focus:ring-1 focus:ring-brand-blue transition">
+                                </div>
+                            </div>
+
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Service Required *</label>
+                                <select id="contactService" required class="w-full px-4 py-3 text-sm rounded-xl border border-slate-300 focus:outline-none focus:border-brand-blue focus:ring-1 focus:ring-brand-blue transition bg-white">
+                                    <option value="">-- Select Required Service --</option>
+                                    <option value="IT Consulting">IT Strategy & Consulting</option>
+                                    <option value="Custom Software">Custom Software Product Development</option>
+                                    <option value="Enterprise Apps">Enterprise Application Development</option>
+                                    <option value="Web / Mobile">Web & Mobile Application Engineering</option>
+                                    <option value="AI / Automation">AI & Business Process Automation</option>
+                                    <option value="Cloud / DevOps">Cloud Migration & Infrastructure</option>
+                                    <option value="QA Testing">Software Quality Assurance & Testing</option>
+                                    <option value="IT Maintenance">Managed IT Support & Maintenance</option>
+                                </select>
+                            </div>
+
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Project Description / Requirements *</label>
+                                <textarea id="contactMessage" rows="4" required placeholder="Briefly describe your business objectives, tech stack preference, or existing maintenance needs..." class="w-full px-4 py-3 text-sm rounded-xl border border-slate-300 focus:outline-none focus:border-brand-blue focus:ring-1 focus:ring-brand-blue transition"></textarea>
+                            </div>
+
+                            <button type="submit" class="w-full bg-brand-blue hover:bg-blue-600 text-white font-bold py-4 rounded-xl shadow-lg shadow-blue-500/30 transition flex items-center justify-center gap-2 text-base">
+                                <i data-lucide="send" class="w-5 h-5"></i>
+                                <span>Submit Project Enquiry</span>
+                            </button>
+                        </form>
+                    </div>
+
+
+
+                    <!-- Corporate Office Details & Clean Map Section with Proper Footer Spacing -->
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4 pt-2 pb-20">
+            <div class="w-full bg-navy-900 rounded-2xl border border-slate-800 p-6 sm:p-8 text-white shadow-xl">
+                <h3 class="text-xl font-bold mb-6 border-b border-slate-800 pb-4">Corporate Office Details</h3>
+                
+                <div class="space-y-6">
+                    <!-- Registered Office Address -->
+                    <div class="flex items-start gap-4">
+                        <div class="w-12 h-12 rounded-xl bg-slate-800/80 flex items-center justify-center text-brand-accent shrink-0">
+                            <i data-lucide="map-pin" class="w-6 h-6"></i>
+                        </div>
+                        <div>
+                            <h4 class="text-sm font-bold text-slate-300">Registered Office Address</h4>
+                            <p class="text-xs text-slate-400 mt-1 leading-relaxed">
+                                Infovative Technologies<br>
+                                Flat 404, Block 8, Pristine Place Apartments,<br>
+                                Gajularamaram, Hyderabad - 500055,<br>
+                                Telangana, India.
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Phone Contact -->
+                    <div class="flex items-center gap-4">
+                        <div class="w-12 h-12 rounded-xl bg-slate-800/80 flex items-center justify-center text-brand-accent shrink-0">
+                            <i data-lucide="phone" class="w-6 h-6"></i>
+                        </div>
+                        <div>
+                            <h4 class="text-sm font-bold text-slate-300">Phone Contact</h4>
+                            <p class="text-xs text-brand-accent font-semibold mt-1">+91 9490302044</p>
+                        </div>
+                    </div>
+
+                    <!-- Email Address -->
+                    <div class="flex items-center gap-4">
+                        <div class="w-12 h-12 rounded-xl bg-slate-800/80 flex items-center justify-center text-brand-accent shrink-0">
+                            <i data-lucide="mail" class="w-6 h-6"></i>
+                        </div>
+                        <div>
+                            <h4 class="text-sm font-bold text-slate-300">Email Address</h4>
+                            <p class="text-xs text-brand-accent font-semibold mt-1">contact@infovativetech.com</p>
+                            <p class="text-[11px] text-slate-400 font-mono">https://infovativetech.com</p>
+                        </div>
+                    </div>
+
+                    <!-- LinkedIn Company Page -->
+                    <div class="flex items-center gap-4">
+                        <div class="w-12 h-12 rounded-xl bg-slate-800/80 flex items-center justify-center text-brand-accent shrink-0">
+                            <svg class="w-5 h-5 fill-current" viewBox="0 0 24 24"><path d="M19 3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14m-.5 15.5v-5.3a3.26 3.26 0 0 0-3.26-3.26c-.85 0-1.84.52-2.28 1.3v-1.11h-2.79v8.37h2.79v-4.93c0-.77.62-1.4 1.39-1.4a1.4 1.4 0 0 1 1.4 1.4v4.93h2.75M6.88 8.56a1.68 1.68 0 0 0 1.68-1.68c0-.93-.75-1.69-1.68-1.69a1.69 1.69 0 0 0-1.69 1.69c0 .93.76 1.68 1.69 1.68m1.39 9.94v-8.37H5.5v8.37h2.77z"/></svg>
+                        </div>
+                        <div>
+                            <h4 class="text-sm font-bold text-slate-300">LinkedIn Company Page</h4>
+                            <a href="https://linkedin.com/company/infovative-technologies/" target="_blank" class="text-xs text-brand-accent hover:underline font-semibold mt-1 block">
+                                linkedin.com/company/infovative-technologies/
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ACCURATE, CLEAN & FULL-WIDTH MAP CARD -->
+                <div class="mt-8 pt-6 border-t border-slate-800 block w-full">
+                    <div class="flex items-center justify-between mb-3 w-full">
+                        <h4 class="text-sm font-bold text-white flex items-center gap-2">
+                            <i data-lucide="map" class="w-4 h-4 text-brand-accent"></i> Corporate Headquarters Map View
+                        </h4>
+                        <a href="https://maps.google.com/?q=Gajularamaram+Hyderabad+500055" target="_blank" class="text-xs text-brand-accent hover:underline font-semibold flex items-center gap-1">
+                            Open in Google Maps &rarr;
+                        </a>
+                    </div>
+                    
+                    <div class="w-full h-72 rounded-xl overflow-hidden border border-slate-700 shadow-md bg-slate-900 block">
+                        <iframe 
+                            class="w-full h-full border-0 block"
+                            src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d15220.536647265882!2d78.4069!3d17.5258!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3bcb8e137b000001%3A0x868b446a84f3ab39!2sGajularamaram%2C%20Hyderabad%2C%20Telangana%20500055!5e0!3m2!1sen!2sin!4v1710000000000!5m2!1sen!2sin" 
+                            allowfullscreen="" 
+                            loading="lazy"
+                            referrerpolicy="no-referrer-when-downgrade">
+                        </iframe>
+                    </div>
+                </div>
+            </div>
+        </div>
+</main>
+
+
+
+
+
+    <!-- FOOTER -->
+    <footer class="bg-navy-950 text-slate-400 border-t border-slate-800 text-sm">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-10">
+                
+                <!-- Brand & Socials Column (2 spans) -->
+                <div class="lg:col-span-2 space-y-4">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-8 h-8 bg-brand-blue rounded flex items-center justify-center text-white font-bold text-xs">IT</div>
+                        <span class="text-white font-extrabold tracking-wider uppercase">INFOVATIVE TECHNOLOGIES</span>
+                    </div>
+                    <p class="text-xs text-slate-400 leading-relaxed max-w-sm">
+                        Enterprise IT consulting, custom software engineering, cloud solutions, and continuous support maintenance headquartered in Hyderabad, India.
+                    </p>
+                    <p class="text-xs text-slate-500 font-mono">Official Domain: infovativetech.com</p>
+                    
+                    <!-- FOLLOW US ON HEADING & REAL SVG SOCIAL BUTTONS -->
+                    <div class="pt-2">
+                        <h5 class="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-3">FOLLOW US ON</h5>
+                        <div class="flex flex-wrap items-center gap-2.5">
+                            
+                            <!-- LinkedIn -->
+                            <a href="https://linkedin.com" target="_blank" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 text-xs font-semibold transition border border-blue-500/30">
+                                <svg class="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24"><path d="M19 3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14m-.5 15.5v-5.3a3.26 3.26 0 0 0-3.26-3.26c-.85 0-1.84.52-2.28 1.3v-1.11h-2.79v8.37h2.79v-4.93c0-.77.62-1.4 1.39-1.4a1.4 1.4 0 0 1 1.4 1.4v4.93h2.75M6.88 8.56a1.68 1.68 0 0 0 1.68-1.68c0-.93-.75-1.69-1.68-1.69a1.69 1.69 0 0 0-1.69 1.69c0 .93.76 1.68 1.69 1.68m1.39 9.94v-8.37H5.5v8.37h2.77z"/></svg> LinkedIn
+                            </a>
+
+                            <!-- WhatsApp -->
+                            <a href="https://whatsapp.com" target="_blank" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 text-xs font-semibold transition border border-emerald-500/30">
+                                <svg class="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.124-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z"/></svg> WhatsApp
+                            </a>
+
+                            <!-- Twitter / X -->
+                            <a href="https://twitter.com" target="_blank" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-sky-600/20 hover:bg-sky-600/30 text-sky-400 text-xs font-semibold transition border border-sky-500/30">
+                                <svg class="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg> Twitter
+                            </a>
+
+                            <!-- Instagram -->
+                            <a href="https://instagram.com" target="_blank" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-pink-600/20 hover:bg-pink-600/30 text-pink-400 text-xs font-semibold transition border border-pink-500/30">
+                                <svg class="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg> Instagram
+                            </a>
+
+                            <!-- Facebook -->
+                            <a href="https://facebook.com" target="_blank" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-400 text-xs font-semibold transition border border-indigo-500/30">
+                                <svg class="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24"><path d="M9 8H6v4h3v12h5V12h3.642L18 8h-4V6.333C14 5.37 14.5 5 15.5 5H18V0h-3.808C10.59 0 9 1.588 9 4.708V8z"/></svg> Facebook
+                            </a>
+
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quick Links -->
+                <div>
+                    <h4 class="text-xs font-bold text-white uppercase tracking-wider mb-4">Quick Links</h4>
+                    <ul class="space-y-2 text-xs">
+                        <li><a href="#home" onclick="navigateTo('home')" class="hover:text-white transition">Home</a></li>
+                        <li><a href="#about" onclick="navigateTo('about')" class="hover:text-white transition">About Us</a></li>
+                        <li><a href="#services" onclick="navigateTo('services')" class="hover:text-white transition">Services Overview</a></li>
+                        <li><a href="#product-dev" onclick="navigateTo('product-dev')" class="hover:text-white transition">Product Development</a></li>
+                        <li><a href="#industries" onclick="navigateTo('industries')" class="hover:text-white transition">Industries</a></li>
+                        <li><a href="#portfolio" onclick="navigateTo('portfolio')" class="hover:text-white transition">Portfolio & Projects</a></li>
+                        <li><a href="#careers" onclick="navigateTo('careers')" class="hover:text-white transition">Careers</a></li>
+                        <li><a href="#contact" onclick="navigateTo('contact')" class="hover:text-white transition">Contact Us</a></li>
+                    </ul>
+                </div>
+
+                <!-- Core Services -->
+                <div>
+                    <h4 class="text-xs font-bold text-white uppercase tracking-wider mb-4">Core Services</h4>
+                    <ul class="space-y-2 text-xs">
+                        <li><a href="#services" onclick="navigateTo('services')" class="hover:text-white transition">IT Consulting</a></li>
+                        <li><a href="#services" onclick="navigateTo('services')" class="hover:text-white transition">Custom Software Dev</a></li>
+                        <li><a href="#services" onclick="navigateTo('services')" class="hover:text-white transition">Enterprise Applications</a></li>
+                        <li><a href="#services" onclick="navigateTo('services')" class="hover:text-white transition">Web & Mobile Apps</a></li>
+                        <li><a href="#services" onclick="navigateTo('services')" class="hover:text-white transition">AI & Automation</a></li>
+                        <li><a href="#services" onclick="navigateTo('services')" class="hover:text-white transition">IT Maintenance & SLA</a></li>
+                    </ul>
+                </div>
+
+                <!-- Contact HQ -->
+                <div>
+                    <h4 class="text-xs font-bold text-white uppercase tracking-wider mb-4">Contact HQ</h4>
+                    <ul class="space-y-3 text-xs">
+                        <li class="flex items-center gap-3">
+                            <div class="w-8 h-8 rounded-lg bg-slate-800/80 flex items-center justify-center text-brand-accent shrink-0">
+                                <i data-lucide="phone" class="w-4 h-4"></i>
+                            </div>
+                            <span>+91 9490302044</span>
+                        </li>
+                        <li class="flex items-center gap-3">
+                            <div class="w-8 h-8 rounded-lg bg-slate-800/80 flex items-center justify-center text-brand-accent shrink-0">
+                                <i data-lucide="mail" class="w-4 h-4"></i>
+                            </div>
+                            <span>contact@infovativetech.com</span>
+                        </li>
+                        <li class="flex items-center gap-3">
+                            <div class="w-8 h-8 rounded-lg bg-slate-800/80 flex items-center justify-center text-brand-accent shrink-0">
+                                <svg class="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M19 3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14m-.5 15.5v-5.3a3.26 3.26 0 0 0-3.26-3.26c-.85 0-1.84.52-2.28 1.3v-1.11h-2.79v8.37h2.79v-4.93c0-.77.62-1.4 1.39-1.4a1.4 1.4 0 0 1 1.4 1.4v4.93h2.75M6.88 8.56a1.68 1.68 0 0 0 1.68-1.68c0-.93-.75-1.69-1.68-1.69a1.69 1.69 0 0 0-1.69 1.69c0 .93.76 1.68 1.69 1.68m1.39 9.94v-8.37H5.5v8.37h2.77z"/></svg>
+                            </div>
+                            <a href="https://linkedin.com" target="_blank" class="text-brand-accent hover:underline font-semibold">LinkedIn Profile</a>
+                        </li>
+                        <li class="flex items-start gap-3 pt-1">
+                            <div class="w-8 h-8 rounded-lg bg-slate-800/80 flex items-center justify-center text-brand-accent shrink-0 mt-0.5">
+                                <i data-lucide="map-pin" class="w-4 h-4"></i>
+                            </div>
+                            <span>Pristine Plaza Apartments, Gachibowli, Hyderabad - 500084, Telangana.</span>
+                        </li>
+                    </ul>
+                </div>
+
+            </div>
+
+            <div class="mt-12 pt-8 border-t border-slate-900 flex flex-col sm:flex-row justify-between items-center text-xs text-slate-500">
+                <p>&copy; <span id="currentYear"></span> Infovative Technologies. All rights reserved.</p>
+                <div class="flex items-center space-x-6 mt-4 sm:mt-0">
+                    <a href="https://linkedin.com" target="_blank" class="hover:text-slate-400 transition flex items-center gap-1.5"><svg class="w-3.5 h-3.5 fill-current inline" viewBox="0 0 24 24"><path d="M19 3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14m-.5 15.5v-5.3a3.26 3.26 0 0 0-3.26-3.26c-.85 0-1.84.52-2.28 1.3v-1.11h-2.79v8.37h2.79v-4.93c0-.77.62-1.4 1.39-1.4a1.4 1.4 0 0 1 1.4 1.4v4.93h2.75M6.88 8.56a1.68 1.68 0 0 0 1.68-1.68c0-.93-.75-1.69-1.68-1.69a1.69 1.69 0 0 0-1.69 1.69c0 .93.76 1.68 1.69 1.68m1.39 9.94v-8.37H5.5v8.37h2.77z"/></svg> LinkedIn</a>
+                    <a href="#" class="hover:text-slate-400 transition">Privacy Policy</a>
+                    <a href="#" class="hover:text-slate-400 transition">Terms of Service</a>
+                </div>
+            </div>
+        </div>
+    </footer>
+    <!-- MODALS FOR PORTFOLIO DETAILS & CAREERS -->
+    <!-- PORTFOLIO MODAL 1 -->
+    <div id="projectModal1" class="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-xl w-full p-6 sm:p-8 space-y-4">
+            <div class="flex justify-between items-center border-b border-slate-100 pb-3">
+                <h3 class="font-bold text-lg text-navy-900">SaaS Resource Dashboard Architecture</h3>
+                <button onclick="closeModal('projectModal1')" class="text-slate-400 hover:text-slate-700"><i data-lucide="x" class="w-6 h-6"></i></button>
+            </div>
+            <p class="text-xs text-slate-600 leading-relaxed">
+                This project represents a multi-tenant business dashboard engineered with modular frontend architecture and microservices handling billing, user permissions, and report generation.
+            </p>
+            <div class="bg-slate-50 p-4 rounded-xl text-xs space-y-2">
+                <p><strong>Primary Tech Stack:</strong> React.js, Express, Node.js, PostgreSQL</p>
+                <p><strong>Security Layer:</strong> JWT Authentication, HTTPS, Data encryption at rest</p>
+                <p><strong>Deployment:</strong> AWS Elastic Beanstalk with RDS SQL Database</p>
+            </div>
+            <button onclick="closeModal('projectModal1')" class="w-full bg-navy-800 text-white font-semibold py-2.5 rounded-xl text-xs">Close Details</button>
+        </div>
+    </div>
+
+    <!-- PORTFOLIO MODAL 2 -->
+    <div id="projectModal2" class="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-xl w-full p-6 sm:p-8 space-y-4">
+            <div class="flex justify-between items-center border-b border-slate-100 pb-3">
+                <h3 class="font-bold text-lg text-navy-900">Logistics & Supply Chain Tracker</h3>
+                <button onclick="closeModal('projectModal2')" class="text-slate-400 hover:text-slate-700"><i data-lucide="x" class="w-6 h-6"></i></button>
+            </div>
+            <p class="text-xs text-slate-600 leading-relaxed">
+                Sample supply chain platform designed to integrate GPS location feeds, calculate estimated arrival times, and send automated client dispatch updates.
+            </p>
+            <div class="bg-slate-50 p-4 rounded-xl text-xs space-y-2">
+                <p><strong>Primary Tech Stack:</strong> Python Django, REST Framework, React Native</p>
+                <p><strong>Key Highlights:</strong> Real-time websocket notifications & map overlays</p>
+            </div>
+            <button onclick="closeModal('projectModal2')" class="w-full bg-navy-800 text-white font-semibold py-2.5 rounded-xl text-xs">Close Details</button>
+        </div>
+    </div>
+
+    <!-- PORTFOLIO MODAL 3 -->
+    <div id="projectModal3" class="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-xl w-full p-6 sm:p-8 space-y-4">
+            <div class="flex justify-between items-center border-b border-slate-100 pb-3">
+                <h3 class="font-bold text-lg text-navy-900">AI Document Parser Pipeline</h3>
+                <button onclick="closeModal('projectModal3')" class="text-slate-400 hover:text-slate-700"><i data-lucide="x" class="w-6 h-6"></i></button>
+            </div>
+            <p class="text-xs text-slate-600 leading-relaxed">
+                Automated document extraction tool using custom OCR models to convert unstructured PDF invoices into structured JSON records for ERP software.
+            </p>
+            <div class="bg-slate-50 p-4 rounded-xl text-xs space-y-2">
+                <p><strong>Primary Tech Stack:</strong> Python, Tesseract OCR, OpenCV, Fast-API</p>
+            </div>
+            <button onclick="closeModal('projectModal3')" class="w-full bg-navy-800 text-white font-semibold py-2.5 rounded-xl text-xs">Close Details</button>
+        </div>
+    </div>
+
+    <!-- CAREER APPLICATION MODAL -->
+    <div id="careerModal" class="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-lg w-full p-6 sm:p-8 space-y-4">
+            <div class="flex justify-between items-center border-b border-slate-100 pb-3">
+                <h3 class="font-bold text-lg text-navy-900">Apply for Position</h3>
+                <button onclick="closeModal('careerModal')" class="text-slate-400 hover:text-slate-700"><i data-lucide="x" class="w-6 h-6"></i></button>
+            </div>
+            <p class="text-xs text-slate-600">Please send your resume directly to our HR team:</p>
+            <div class="bg-blue-50 border border-blue-200 p-4 rounded-xl text-xs space-y-2 text-slate-800 font-mono">
+                <p><strong>Email Resumes To:</strong> contact@infovativetech.com</p>
+                <p><strong>Subject Line:</strong> Career Application - [Position Name]</p>
+            </div>
+            <p class="text-xs text-slate-500">Include your current CTC, expected CTC, and notice period in the email message body.</p>
+            <button onclick="closeModal('careerModal')" class="w-full bg-navy-800 text-white font-semibold py-2.5 rounded-xl text-xs">Close Window</button>
+        </div>
+    </div>
+
+    <!-- TOAST NOTIFICATION -->
+    <div id="toast" class="fixed bottom-6 right-6 z-50 bg-navy-900 text-white px-5 py-3 rounded-xl shadow-2xl border border-slate-700 hidden flex items-center gap-3 transition-all duration-300">
+        <i data-lucide="check-circle" class="w-5 h-5 text-emerald-400"></i>
+        <span id="toastMessage" class="text-xs font-semibold">Enquiry submitted successfully!</span>
+    </div>
+
+    <!-- JAVASCRIPT CLIENT ROUTER & INTERACTIVE LOGIC -->
+    <script>
+        // Set dynamic current year in footer
+        document.getElementById('currentYear').textContent = new Date().getFullYear();
+
+        // Initialize Lucide icons
+        lucide.createIcons();
+
+        // Mobile Menu Toggle
+        function toggleMobileMenu() {
+            const menu = document.getElementById('mobileMenu');
+            menu.classList.toggle('hidden');
+        }
+
+        // SPA Navigation Logic with Smooth Scroll Fallback
+        function navigateTo(pageId, subTarget = null) {
+            // Hide all page sections
+            const sections = document.querySelectorAll('.page-section');
+            sections.forEach(sec => sec.classList.remove('active'));
+
+            // Target requested page
+            const targetPage = document.getElementById('page-' + pageId);
+            if (targetPage) {
+                targetPage.classList.add('active');
+                
+                // Cross-browser smooth scroll execution
+                try {
+                    window.scrollTo({
+                        top: 0,
+                        behavior: 'smooth'
+                    });
+                } catch (e) {
+                    window.scrollTo(0, 0); // Fallback for ancient browsers
+                }
+            }
+
+            // Update navbar links active state
+            const navLinks = document.querySelectorAll('.nav-link');
+            navLinks.forEach(link => {
+                if(link.getAttribute('href') === '#' + pageId) {
+                    link.classList.add('text-brand-accent');
+                } else {
+                    link.classList.remove('text-brand-accent');
+                }
+            });
+
+            // Handle sub-filtering on Services page if specified
+            if (pageId === 'services' && subTarget) {
+                showServiceDetail(subTarget);
+            }
+        }
+        // Handle URL hashes on page load
+        window.addEventListener('load', () => {
+            const hash = window.location.hash.replace('#', '');
+            if (hash) {
+                const parts = hash.split('-');
+                if (parts[0] === 'service' && parts[1]) {
+                    navigateTo('services', parts[1]);
+                } else {
+                    navigateTo(hash);
+                }
+            }
+        });
+
+        // Pillar Tab Switcher on Homepage
+        function switchPillarTab(tabId) {
+            // Hide all pillar content
+            const contents = document.querySelectorAll('.pillar-content');
+            contents.forEach(c => c.classList.add('hidden'));
+
+            // Reset tab button styles
+            const buttons = document.querySelectorAll('.pillar-tab-btn');
+            buttons.forEach(b => {
+                b.classList.remove('bg-brand-blue', 'text-white', 'border-brand-blue', 'shadow-md');
+                b.classList.add('bg-slate-100', 'text-slate-700', 'border-slate-200');
+            });
+
+            // Show selected pillar content
+            const selectedContent = document.getElementById(tabId);
+            if (selectedContent) selectedContent.classList.remove('hidden');
+
+            // Highlight active button
+            const activeBtn = document.getElementById('btn-' + tabId);
+            if (activeBtn) {
+                activeBtn.classList.remove('bg-slate-100', 'text-slate-700', 'border-slate-200');
+                activeBtn.classList.add('bg-brand-blue', 'text-white', 'border-brand-blue', 'shadow-md');
+            }
+        }
+
+        // Services Sub-filtering Function
+        function showServiceDetail(serviceKey) {
+            const cards = document.querySelectorAll('.service-item-card');
+            const btns = document.querySelectorAll('.service-nav-btn');
+
+            // Reset buttons
+            btns.forEach(b => {
+                b.classList.remove('bg-navy-800', 'text-white');
+                b.classList.add('bg-slate-100', 'text-slate-700');
+            });
+
+            // Highlight clicked button
+            event?.target?.classList?.remove('bg-slate-100', 'text-slate-700');
+            event?.target?.classList?.add('bg-navy-800', 'text-white');
+
+            if (serviceKey === 'all') {
+                cards.forEach(c => c.style.display = 'flex');
+            } else {
+                cards.forEach(c => c.style.display = 'none');
+                const targetCard = document.getElementById('card-' + serviceKey);
+                if (targetCard) {
+                    targetCard.style.display = 'flex';
+                }
+            }
+        }
+
+        // Portfolio Filter Function
+        function filterPortfolio(category) {
+            const cards = document.querySelectorAll('.port-card');
+            cards.forEach(c => {
+                if (category === 'all' || c.classList.contains(category)) {
+                    c.style.display = 'block';
+                } else {
+                    c.style.display = 'none';
+                }
+            });
+        }
+
+        // Modal Controls
+        function openModal(modalId) {
+            const modal = document.getElementById(modalId);
+            if (modal) modal.classList.remove('hidden');
+        }
+
+        function closeModal(modalId) {
+            const modal = document.getElementById(modalId);
+            if (modal) modal.classList.add('hidden');
+        }
+
+        // Toast Notification System
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            const toastMsg = document.getElementById('toastMessage');
+            toastMsg.textContent = msg;
+            toast.classList.remove('hidden');
+            setTimeout(() => {
+                toast.classList.add('hidden');
+            }, 4000);
+        }
+
+        // Form Validation & Handling with Professional Success State
+        function handleFormSubmit(e) {
+            e.preventDefault();
+            const name = document.getElementById('contactName').value;
+            const email = document.getElementById('contactEmail').value;
+            const phone = document.getElementById('contactPhone').value;
+            const service = document.getElementById('contactService').value;
+
+            if(!name || !email || !phone || !service) {
+                showToast("Please fill in all mandatory fields.");
+                return;
+            }
+
+            // Generate a professional reference ID
+            const refId = 'INV-' + Math.floor(100000 + Math.random() * 900000);
+
+            // Replace form container with professional success card
+            const formContainer = document.getElementById('contactForm').parentElement;
+            formContainer.innerHTML = `
+                <div class="text-center py-12 space-y-4">
+                    <div class="w-16 h-16 bg-emerald-500/20 text-emerald-400 rounded-full flex items-center justify-center mx-auto">
+                        <i data-lucide="check-circle" class="w-8 h-8"></i>
+                    </div>
+                    <h3 class="text-2xl font-bold text-navy-900">Enquiry Submitted Successfully!</h3>
+                    <p class="text-xs text-slate-600 max-w-sm mx-auto">
+                        Thank you <span class="font-semibold text-slate-800">${name}</span>. Our technical lead has received your request for <span class="font-semibold text-slate-800">${service}</span>.
+                    </p>
+                    <div class="bg-slate-50 border border-slate-200 p-4 rounded-xl max-w-xs mx-auto text-xs font-mono text-slate-700">
+                        Reference ID: <span class="text-brand-blue font-bold">${refId}</span>
+                    </div>
+                    <p class="text-[11px] text-slate-400">We will respond to ${email} within 24 business hours.</p>
+                    <button onclick="location.reload()" class="mt-4 px-6 py-2.5 bg-navy-800 text-white text-xs font-semibold rounded-xl hover:bg-navy-900 transition">
+                        Submit Another Enquiry
+                    </button>
+                </div>
+            `;
+            
+            // Re-initialize icons for the new HTML content
+            if (window.lucide) lucide.createIcons();
+            showToast("Enquiry logged successfully!");
+        }
+    </script>
+
+<!-- AUTHENTICATION / LOGIN & REGISTER MODAL (EMPLOYEE & USER SUPPORTS) -->
+<div id="authModal" class="fixed inset-0 z-50 hidden flex items-center justify-center bg-navy-950/80 backdrop-blur-md p-4" onclick="if(event.target === this) toggleLoginModal()">
+    <div class="bg-white w-full max-w-md rounded-2xl shadow-2xl border border-slate-200 overflow-hidden relative">
+        
+        <!-- CLOSE BUTTON -->
+        <button onclick="toggleLoginModal()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-700 bg-slate-100 hover:bg-slate-200 p-2 rounded-full transition flex items-center gap-1.5 text-xs font-semibold z-10" title="Close Modal">
+            <i data-lucide="x" class="w-4 h-4"></i>
+            <span>Close</span>
+        </button>
+
+        <!-- MODAL HEADER -->
+        <div class="bg-navy-900 p-6 text-white text-center">
+            <div class="w-10 h-10 border-2 border-brand-blue rounded flex items-center justify-center p-1 bg-navy-900 mx-auto mb-3">
+                <svg viewBox="0 0 100 100" class="w-full h-full fill-current text-white">
+                    <path d="M 10 10 H 90 V 30 H 30 V 90 H 10 Z"/>
+                    <path d="M 40 40 H 90 V 60 H 75 V 90 H 55 V 60 H 40 Z"/>
+                </svg>
+            </div>
+            <h3 id="authModalTitle" class="text-xl font-bold">Sign In to Infovative</h3>
+            <p id="authModalSubtitle" class="text-xs text-slate-400 mt-1">Access your client dashboard & enterprise services</p>
+        </div>
+
+        <!-- FORM CONTAINER -->
+        <div class="p-6">
+            
+            <!-- USER ROLE / TYPE TOGGLE (Visible only in Login Mode) -->
+            <div id="roleTabsContainer" class="flex p-1 bg-slate-100 rounded-xl mb-4 border border-slate-200">
+                <button type="button" id="tab-client" onclick="switchLoginRole('client')" 
+                        class="flex-1 py-2 text-xs font-semibold rounded-lg transition-all text-white bg-blue-600 shadow-sm">
+                    Client / User
+                </button>
+                <button type="button" id="tab-employee" onclick="switchLoginRole('employee')" 
+                        class="flex-1 py-2 text-xs font-semibold rounded-lg transition-all text-slate-500 hover:text-slate-800">
+                    Employee Portal
+                </button>
+            </div>
+
+            <form id="authForm" onsubmit="handleAuthSubmit(event)" class="space-y-4">
+                
+                <!-- FULL NAME (Register Mode Only) -->
+                <div id="nameField" class="hidden">
+                    <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Full Name</label>
+                    <input type="text" id="authName" placeholder="Chiru Prakash" class="w-full px-4 py-2.5 text-sm rounded-xl border border-slate-300 focus:outline-none focus:border-brand-blue">
+                </div>
+
+                <!-- PHONE NUMBER (Register Mode Only) -->
+                <div id="phoneField" class="hidden">
+                    <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Phone Number</label>
+                    <input type="tel" id="authPhone" placeholder="9999999999" value="9999999999" class="w-full px-4 py-2.5 text-sm rounded-xl border border-slate-300 focus:outline-none focus:border-brand-blue">
+                </div>
+
+                <!-- EMAIL -->
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Work Email</label>
+                    <input type="email" id="authEmail" required placeholder="name@company.com" class="w-full px-4 py-2.5 text-sm rounded-xl border border-slate-300 focus:outline-none focus:border-brand-blue">
+                </div>
+
+                <!-- PASSWORD -->
+                <div>
+                    <div class="flex justify-between items-center mb-1">
+                        <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider">Password</label>
+                        <a href="#" onclick="alert('Password reset link sent to your email.'); return false;" id="forgotPassLink" class="text-xs text-brand-blue hover:underline">Forgot?</a>
+                    </div>
+                    <input type="password" id="authPassword" required placeholder="••••••••" class="w-full px-4 py-2.5 text-sm rounded-xl border border-slate-300 focus:outline-none focus:border-brand-blue">
+                </div>
+
+                <!-- HIDDEN ROLE INPUT FOR LOGIN -->
+                <input type="hidden" id="authRole" value="client">
+
+                <!-- SUBMIT BUTTON -->
+                <button type="submit" id="authSubmitBtn" class="w-full bg-brand-blue hover:bg-blue-600 text-white font-bold py-3 rounded-xl shadow-md transition text-sm">
+                    Sign In
+                </button>
+            </form>
+
+            <!-- TOGGLE LOGIN / REGISTER -->
+            <div class="mt-6 text-center pt-4 border-t border-slate-100 text-xs text-slate-600">
+                <span id="toggleAuthText">Don't have an account?</span>
+                <button type="button" onclick="toggleAuthMode()" id="toggleAuthBtn" class="text-brand-blue font-bold hover:underline ml-1">
+                    Create Account
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+</body>
+</html>
